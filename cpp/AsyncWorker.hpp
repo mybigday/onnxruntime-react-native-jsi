@@ -20,7 +20,6 @@ class AsyncWorker: public HostObject, public std::enable_shared_from_this<AsyncW
       if (thread_.joinable()) {
         thread_.join();
       }
-      LOGI("AsyncWorker destroyed");
     }
 
     inline Value toPromise(Runtime& runtime) {
@@ -37,14 +36,26 @@ class AsyncWorker: public HostObject, public std::enable_shared_from_this<AsyncW
             try {
               Execute();
               jsInvoker->invokeAsync([this](Runtime& runtime) {
-                if (!resolver_) return;
-                resolver_->resolve_.call(runtime_, OnSuccess(runtime));
+                if (resolver_) {
+                  resolver_->resolve_.call(runtime_, OnSuccess(runtime));
+                }
+                // release self
+                auto promise = weakPromise_->lock(runtime);
+                if (promise.isObject()) {
+                  promise.asObject(runtime).setProperty(runtime, "_p", Value::undefined());
+                }
               });
             } catch (const std::exception& e) {
               error_ = std::string(e.what());
               jsInvoker->invokeAsync([this](Runtime& runtime) {
-                if (!resolver_) return;
-                resolver_->reject_.call(runtime_, OnError(runtime, error_));
+                if (resolver_) {
+                  resolver_->reject_.call(runtime_, OnError(runtime, error_));
+                }
+                // release self
+                auto promise = weakPromise_->lock(runtime);
+                if (promise.isObject()) {
+                  promise.asObject(runtime).setProperty(runtime, "_p", Value::undefined());
+                }
               });
             }
           });
@@ -53,9 +64,9 @@ class AsyncWorker: public HostObject, public std::enable_shared_from_this<AsyncW
       );
       auto promise = jsPromise.asFunction(runtime).callAsConstructor(runtime, executor);
       // Hacking the promise to keep the AsyncWorker alive
-      promise
-        .asObject(runtime)
-        .setProperty(runtime, "_p", Object::createFromHostObject(runtime, shared_from_this()));
+      auto promiseObj = promise.asObject(runtime);
+      weakPromise_ = std::make_shared<WeakObject>(runtime, promiseObj);
+      promiseObj.setProperty(runtime, "_p", Object::createFromHostObject(runtime, shared_from_this()));
       return promise;
     }
 
@@ -76,6 +87,7 @@ class AsyncWorker: public HostObject, public std::enable_shared_from_this<AsyncW
     };
     Runtime& runtime_;
     std::shared_ptr<Resolver> resolver_;
+    std::shared_ptr<WeakObject> weakPromise_;
     std::string error_;
     std::thread thread_;
 };
