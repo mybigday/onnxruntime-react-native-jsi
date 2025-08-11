@@ -1,22 +1,24 @@
 # onnxruntime-react-native-jsi
 
-Experimental integration for onnxruntime via React Native JSI
+Experimental React Native JSI implement for onnxruntime
 
 ## Installation
 
 ```sh
 npm install onnxruntime-react-native-jsi
+
+# Or alias
+npm install onnxruntime-react-native@npm:onnxruntime-react-native-jsi
 ```
 
 ## Usage
 
 
 ```js
-import { multiply } from 'onnxruntime-react-native-jsi';
+// Just use like normal `onnxruntime-react-native`
+import { InferenceSession, Tensor } from 'onnxruntime-react-native-jsi';
 
-// ...
-
-const result = await multiply(3, 7);
+const model = await InferenceSession.create('path/to/model.onnx')
 ```
 
 
