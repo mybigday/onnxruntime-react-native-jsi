@@ -14,11 +14,6 @@ namespace onnxruntimereactnativejsi {
  */
 class TensorUtils {
 public:
-  // Data type conversion utilities
-  static std::string dataTypeToString(ONNXTensorElementDataType dataType);
-  static ONNXTensorElementDataType stringToDataType(const std::string& typeStr);
-  static size_t getElementSize(ONNXTensorElementDataType dataType);
-  
   // Tensor creation from onnxruntime-common Tensor objects
   static Ort::Value createOrtValueFromJSTensor(
     Runtime& runtime, 
@@ -34,7 +29,7 @@ public:
   );
   
   // Helper to parse tensor properties from JS object
-  static bool isValidJSTensor(Runtime& runtime, const Object& obj);
+  static bool isTensor(Runtime& runtime, const Object& obj);
 };
 
 } // namespace onnxruntimereactnativejsi

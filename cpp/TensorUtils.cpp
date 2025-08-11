@@ -55,7 +55,7 @@ static const std::unordered_map<ONNXTensorElementDataType, const char*> dataType
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL, "Uint8Array"},
 };
 
-std::string TensorUtils::dataTypeToString(ONNXTensorElementDataType dataType) {
+std::string dataTypeToString(ONNXTensorElementDataType dataType) {
   auto it = dataTypeToStringMap.find(dataType);
   if (it != dataTypeToStringMap.end()) {
     return it->second;
@@ -63,7 +63,7 @@ std::string TensorUtils::dataTypeToString(ONNXTensorElementDataType dataType) {
   throw std::invalid_argument("Unsupported or unknown tensor data type: " + std::to_string(static_cast<int>(dataType)));
 }
 
-ONNXTensorElementDataType TensorUtils::stringToDataType(const std::string& typeStr) {
+ONNXTensorElementDataType stringToDataType(const std::string& typeStr) {
   for (auto it = dataTypeToStringMap.begin(); it != dataTypeToStringMap.end(); ++it) {
     if (it->second == typeStr) {
       return it->first;
@@ -72,7 +72,7 @@ ONNXTensorElementDataType TensorUtils::stringToDataType(const std::string& typeS
   throw std::invalid_argument("Unsupported or unknown tensor data type: " + typeStr);
 }
 
-size_t TensorUtils::getElementSize(ONNXTensorElementDataType dataType) {
+size_t getElementSize(ONNXTensorElementDataType dataType) {
   auto it = elementSizeMap.find(dataType);
   if (it != elementSizeMap.end()) {
     return it->second;
@@ -80,7 +80,7 @@ size_t TensorUtils::getElementSize(ONNXTensorElementDataType dataType) {
   throw std::invalid_argument("Unsupported or unknown tensor data type: " + std::to_string(static_cast<int>(dataType)));
 }
 
-bool TensorUtils::isValidJSTensor(Runtime& runtime, const Object& obj) {
+bool TensorUtils::isTensor(Runtime& runtime, const Object& obj) {
   return obj.hasProperty(runtime, "cpuData") &&
          obj.hasProperty(runtime, "dims") &&
          obj.hasProperty(runtime, "type");
@@ -108,11 +108,11 @@ size_t getElementCount(const std::vector<int64_t>& shape) {
 }
 
 Ort::Value TensorUtils::createOrtValueFromJSTensor(
-  Runtime& runtime, 
-  const Object& tensorObj, 
+  Runtime& runtime,
+  const Object& tensorObj,
   const Ort::MemoryInfo& memoryInfo
 ) {
-  if (!isValidJSTensor(runtime, tensorObj)) {
+  if (!isTensor(runtime, tensorObj)) {
     throw JSError(runtime, "Invalid tensor object: missing cpuData, dims, or type properties");
   }
   

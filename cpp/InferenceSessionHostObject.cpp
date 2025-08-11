@@ -391,6 +391,13 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
         outputNames.push_back(strdup(key.c_str()));
       }
       outputValues.resize(outputNames.size());
+      for (size_t i = 0; i < outputNames.size(); ++i) {
+        auto key = outputNames[i];
+        auto tensorObj = outputObject.getProperty(runtime, key);
+        if (tensorObj.isObject() && TensorUtils::isTensor(runtime, tensorObj.asObject(runtime))) {
+          outputValues[i] = TensorUtils::createOrtValueFromJSTensor(runtime, tensorObj.asObject(runtime), session_->memoryInfo_);
+        }
+      }
     }
 
     void Execute() override {
