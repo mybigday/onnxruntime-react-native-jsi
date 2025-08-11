@@ -2,7 +2,7 @@
 export function floatTo16BitPCM(float32: Float32Array): Int16Array {
   const clamped = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32[i]));
+    const s = Math.max(-1, Math.min(1, float32[i]!));
     clamped[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
   return clamped;
@@ -41,7 +41,7 @@ export function encodeWavPCM16Mono(
   // PCM samples
   let offset = 44;
   for (let i = 0; i < pcm16.length; i++, offset += 2) {
-    view.setInt16(offset, pcm16[i], true);
+    view.setInt16(offset, pcm16[i]!, true);
   }
   return buffer;
 }
