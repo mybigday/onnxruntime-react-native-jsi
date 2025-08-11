@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,9 +34,6 @@ export default function SettingsScreen({ navigation }: Props) {
     unloadPipeline,
     error,
   } = useAI();
-  const [localModel, setLocalModel] = useState(modelId);
-  const [localDtype, setLocalDtype] = useState(dtype);
-
   const onContinue = useCallback(() => {
     if (task === 'text-generation') {
       navigation.navigate('Chat');
@@ -49,20 +46,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const onApply = useCallback(async () => {
     if (isLoaded) unloadPipeline();
-    setModelId(localModel.trim());
-    setDtype(localDtype);
     await loadPipeline();
     onContinue();
-  }, [
-    isLoaded,
-    unloadPipeline,
-    setModelId,
-    localModel,
-    setDtype,
-    localDtype,
-    loadPipeline,
-    onContinue,
-  ]);
+  }, [isLoaded, unloadPipeline, loadPipeline, onContinue]);
 
   return (
     <View style={styles.container}>
@@ -70,8 +56,8 @@ export default function SettingsScreen({ navigation }: Props) {
       <Text>Model ID</Text>
       <TextInput
         style={styles.input}
-        value={localModel}
-        onChangeText={setLocalModel}
+        value={modelId}
+        onChangeText={(text) => setModelId(text.trim())}
         autoCapitalize="none"
         autoCorrect={false}
       />
@@ -91,13 +77,13 @@ export default function SettingsScreen({ navigation }: Props) {
         ).map((opt) => (
           <TouchableOpacity
             key={opt}
-            style={[styles.chip, localDtype === opt && styles.chipSelected]}
-            onPress={() => setLocalDtype(opt)}
+            style={[styles.chip, dtype === opt && styles.chipSelected]}
+            onPress={() => setDtype(opt)}
           >
             <Text
               style={[
                 styles.chipText,
-                localDtype === opt && styles.chipTextSelected,
+                dtype === opt && styles.chipTextSelected,
               ]}
             >
               {opt}
@@ -136,7 +122,6 @@ export default function SettingsScreen({ navigation }: Props) {
         ]}
         onPress={() => {
           unloadPipeline();
-          setModelId('');
         }}
         disabled={!isLoaded || isLoading}
       >

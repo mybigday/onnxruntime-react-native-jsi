@@ -21,6 +21,7 @@
     "react": "19.1.0",
     "react-native": "0.80.2",
     "react-native-audio-api": "^0.7.0",
+    "react-native-device-info": "^14.0.4",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "^4.13.1",
     "text-encoding-polyfill": "^0.6.7",

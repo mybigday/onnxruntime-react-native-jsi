@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { pipeline, TextStreamer } from '@huggingface/transformers';
+import DeviceInfo from 'react-native-device-info';
 
 export type AITask =
   | 'text-generation'
@@ -74,6 +75,14 @@ const defaultModels: Record<AITask, string> = {
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
+const getMemoryUsage = async () =>
+  Object.fromEntries(
+    await Promise.all([
+      DeviceInfo.getTotalMemory().then((total) => ['total', total]),
+      DeviceInfo.getUsedMemory().then((used) => ['used', used]),
+    ])
+  );
+
 export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -94,7 +103,11 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(undefined);
       const opts: LoadOptions = { dtype };
       await pipeRef.current?.dispose();
+      console.log('modelId:', modelId);
+      console.log('dtype:', dtype);
+      console.log('memory usage before load:', await getMemoryUsage());
       pipeRef.current = await pipeline(task as any, modelId, opts as any);
+      console.log('memory usage after load:', await getMemoryUsage());
       setIsLoaded(true);
     } catch (e) {
       setError(e);
@@ -118,23 +131,40 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
     ): Promise<string> => {
       if (!pipeRef.current) throw new Error('Pipeline is not loaded');
       let full = '';
+      let tokens = 0;
       const streamer = new TextStreamer(pipeRef.current.tokenizer, {
         skip_prompt: true,
         skip_special_tokens: true,
         callback_function: (text: string) => {
           full += text;
+          tokens += 1;
           onToken?.(text);
         },
       });
-      const input = Array.isArray(messages)
-        ? messages
-        : [{ role: 'user', content: messages }];
+      const input = pipeRef.current.tokenizer.apply_chat_template(
+        Array.isArray(messages)
+          ? messages
+          : [{ role: 'user', content: messages }],
+        {
+          add_generation_prompt: true,
+          tokenize: false,
+        }
+      );
+      tokens = pipeRef.current.tokenizer.encode(input).length;
+      console.log('memory usage before run:', await getMemoryUsage());
+      const start = performance.now();
       await pipeRef.current(input, {
         streamer,
         max_new_tokens: 512,
         ...(options || {}),
         do_sample: true,
       });
+      const end = performance.now();
+      console.log('memory usage after run:', await getMemoryUsage());
+      console.log(`time taken: ${end - start}ms`);
+      console.log(
+        `tokens: ${tokens}, tokens/s: ${(tokens / (end - start)) * 1000}`
+      );
       return full;
     },
     []

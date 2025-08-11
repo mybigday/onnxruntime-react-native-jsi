@@ -10201,6 +10201,7 @@ __metadata:
     react-native: 0.80.2
     react-native-audio-api: ^0.7.0
     react-native-builder-bob: ^0.40.13
+    react-native-device-info: ^14.0.4
     react-native-safe-area-context: ^5.6.0
     react-native-screens: ^4.13.1
     text-encoding-polyfill: ^0.6.7
@@ -11045,6 +11046,15 @@ __metadata:
   bin:
     bob: bin/bob
   checksum: 3140749ce4c2b4362502b2074ef2a6de92e03ab1a49bdbfc8058fbea0335a000d0554d012d9ce857b18bc395a2d6796c011d922725089e4688d6760f0b56b519
+  languageName: node
+  linkType: hard
+
+"react-native-device-info@npm:^14.0.4":
+  version: 14.0.4
+  resolution: "react-native-device-info@npm:14.0.4"
+  peerDependencies:
+    react-native: "*"
+  checksum: aa839dbe7df1246a4b5f9bcfeb3d4cc4be585f13a0d3ff6a03f57a0c2cfe7590291ac292dda4c51fd8765f94c870857676463e8e2f1660b057f3ae2b4335db29
   languageName: node
   linkType: hard
 

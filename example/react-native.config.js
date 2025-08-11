@@ -11,11 +11,11 @@ module.exports = {
     [pkg.name]: {
       root: path.join(__dirname, '..'),
     },
-    'onnxruntime-react-native': {
-      platforms: {
-        android: null,
-        ios: null,
-      },
-    },
+    // 'onnxruntime-react-native': {
+    //   platforms: {
+    //     android: null,
+    //     ios: null,
+    //   },
+    // },
   },
 };
