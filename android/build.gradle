@@ -103,7 +103,9 @@ def REACT_NATIVE_VERSION = FULL_RN_VERSION.split("\\.")[1].toInteger()
 
 def ENABLE_PREFAB = REACT_NATIVE_VERSION > 68
 
-def onnxruntime_version = "1.22.0"
+// parse package.json
+def onnxruntime_path = file("$projectDir/../package.json")
+def onnxruntime_version = new groovy.json.JsonSlurper().parseText(onnxruntime_path.text).onnxruntime.android
 
 android {
   if (supportsNamespace()) {

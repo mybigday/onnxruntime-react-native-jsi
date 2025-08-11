@@ -92,7 +92,10 @@
     "react": "*",
     "react-native": "*"
   },
-  "onnxruntime": "1.22.0",
+  "onnxruntime": {
+    "android": "1.22.0",
+    "ios": "1.22.0"
+  },
   "workspaces": [
     "example"
   ],
