@@ -1,0 +1,80 @@
+#include "onnxruntime-react-native-jsi.h"
+#include "InferenceSessionHostObject.h"
+#include "global.h"
+#include <memory>
+
+using namespace facebook::jsi;
+
+namespace onnxruntimereactnativejsi {
+
+
+void install(Runtime& runtime, std::shared_ptr<facebook::react::CallInvoker> jsInvoker) {
+  try {
+    auto ortApi = Object(runtime);
+    
+    auto initOrtOnceMethod = Function::createFromHostFunction(
+      runtime,
+      PropNameID::forAscii(runtime, "initOrtOnce"),
+      2,
+      [jsInvoker](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
+        try {
+          OrtLoggingLevel logLevel = ORT_LOGGING_LEVEL_WARNING;
+          if (count > 0 && arguments[0].isNumber()) {
+            int level = static_cast<int>(arguments[0].asNumber());
+            switch (level) {
+              case 0: logLevel = ORT_LOGGING_LEVEL_VERBOSE; break;
+              case 1: logLevel = ORT_LOGGING_LEVEL_INFO; break;
+              case 2: logLevel = ORT_LOGGING_LEVEL_WARNING; break;
+              case 3: logLevel = ORT_LOGGING_LEVEL_ERROR; break;
+              case 4: logLevel = ORT_LOGGING_LEVEL_FATAL; break;
+              default: logLevel = ORT_LOGGING_LEVEL_WARNING; break;
+            }
+          }
+          std::shared_ptr<Object> tensorConstructor = std::make_shared<Object>(arguments[1].asObject(runtime));
+          initOrtOnce(logLevel, jsInvoker, tensorConstructor);
+          return Value::undefined();
+        } catch (const std::exception& e) {
+          throw JSError(runtime, "Failed to initialize ONNX Runtime: " + std::string(e.what()));
+        }
+      }
+    );
+    
+    ortApi.setProperty(runtime, "initOrtOnce", initOrtOnceMethod);
+    
+    auto createInferenceSessionMethod = Function::createFromHostFunction(
+      runtime,
+      PropNameID::forAscii(runtime, "createInferenceSession"),
+      0,
+      [](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
+        auto sessionHostObject = std::make_shared<InferenceSessionHostObject>();
+        return Object::createFromHostObject(runtime, sessionHostObject);
+      }
+    );
+    
+    ortApi.setProperty(runtime, "createInferenceSession", createInferenceSessionMethod);
+    
+    auto listSupportedBackendsMethod = Function::createFromHostFunction(
+      runtime,
+      PropNameID::forAscii(runtime, "listSupportedBackends"),
+      0,
+      [](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
+        auto backends = Array(runtime, 1);
+        auto backend = Object(runtime);
+        backend.setProperty(runtime, "name", String::createFromUtf8(runtime, "cpu"));
+        backends.setValueAtIndex(runtime, 0, Value(runtime, backend));
+        return Value(runtime, backends);
+      }
+    );
+    
+    ortApi.setProperty(runtime, "listSupportedBackends", listSupportedBackendsMethod);
+    
+    ortApi.setProperty(runtime, "version", String::createFromUtf8(runtime, OrtGetApiBase()->GetVersionString()));
+    
+    runtime.global().setProperty(runtime, "OrtApi", ortApi);
+    
+  } catch (const std::exception& e) {
+    throw JSError(runtime, "Failed to install ONNX Runtime JSI bindings: " + std::string(e.what()));
+  }
+}
+
+} // namespace onnxruntimereactnativejsi

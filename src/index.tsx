@@ -1,0 +1,16 @@
+export * from 'onnxruntime-common';
+export { listSupportedBackends } from './backend';
+
+import { registerBackend, env } from 'onnxruntime-common';
+import { onnxruntimeBackend, listSupportedBackends } from './backend';
+import { OrtApi } from './binding';
+
+const backends = listSupportedBackends();
+for (const backend of backends) {
+  registerBackend(backend.name, onnxruntimeBackend, 100);
+}
+
+Object.defineProperty(env.versions, 'react-native', {
+  value: OrtApi.version,
+  enumerable: true,
+});
