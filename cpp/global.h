@@ -2,7 +2,7 @@
 
 #include <onnxruntime_cxx_api.h>
 #include <jsi/jsi.h>
-#include <ReactCommon/CallInvokerHolder.h>
+#include <ReactCommon/CallInvoker.h>
 #include <memory>
 
 using namespace facebook::jsi;
