@@ -2,7 +2,7 @@
 #define ONNXRUNTIMEREACTNATIVEJSI_H
 
 #include <jsi/jsi.h>
-#include <ReactCommon/CallInvokerHolder.h>
+#include <ReactCommon/CallInvoker.h>
 
 namespace onnxruntimereactnativejsi {
 

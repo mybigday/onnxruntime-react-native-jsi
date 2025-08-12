@@ -2,7 +2,6 @@
 
 #include <jsi/jsi.h>
 #include <onnxruntime_cxx_api.h>
-#include <ReactCommon/CallInvokerHolder.h>
 #include <memory>
 #include <vector>
 #include <string>

@@ -57,10 +57,10 @@ RCT_EXPORT_MODULE()
     }
 }
 
-RCT_EXPORT_METHOD(install)
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install)
 {
     [self installImpl];
-    return YES;
+    return @(YES);
 }
 
 // Don't compile this code when we build for the old architecture.
