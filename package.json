@@ -1,6 +1,6 @@
 {
   "name": "onnxruntime-react-native-jsi",
-  "version": "0.1.0",
+  "version": "1.22.0",
   "description": "Experimental integration for onnxruntime via React Native JSI",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -91,10 +91,6 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
-  },
-  "onnxruntime": {
-    "android": "1.22.0",
-    "ios": "1.22.0"
   },
   "workspaces": [
     "example"

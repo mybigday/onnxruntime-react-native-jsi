@@ -105,7 +105,7 @@ def ENABLE_PREFAB = REACT_NATIVE_VERSION > 68
 
 // parse package.json
 def onnxruntime_path = file("$projectDir/../package.json")
-def onnxruntime_version = new groovy.json.JsonSlurper().parseText(onnxruntime_path.text).onnxruntime.android
+def onnxruntime_version = new groovy.json.JsonSlurper().parseText(onnxruntime_path.text).version
 
 android {
   if (supportsNamespace()) {
@@ -232,7 +232,7 @@ dependencies {
   //noinspection GradleDynamicVersion
   implementation "com.facebook.react:react-native:+"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  
+
   // Official ONNX Runtime Android AAR (includes prebuilt onnxruntime.so)
   extractJNI("com.microsoft.onnxruntime:onnxruntime-android:${onnxruntime_version}@aar")
   extractHeaders("com.microsoft.onnxruntime:onnxruntime-android:${onnxruntime_version}@aar")
