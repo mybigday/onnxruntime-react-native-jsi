@@ -4,8 +4,12 @@
 #include "log.h"
 #include "utils.h"
 #include "AsyncWorker.hpp"
+#include <cpu_provider_factory.h>
 #ifdef USE_NNAPI
 #include <nnapi_provider_factory.h>
+#endif
+#ifdef __APPLE__
+#include <coreml_provider_factory.h>
 #endif
 #include <stdexcept>
 #include <unordered_map>
@@ -91,6 +95,10 @@ void InferenceSessionHostObject::set(Runtime& runtime, const PropNameID& name, c
 class ExtendedSessionOptions : public Ort::SessionOptions {
   public:
     ExtendedSessionOptions() = default;
+
+    void AppendExecutionProvider_CPU(int use_arena) {
+      Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(this->p_, use_arena));
+    }
 
     void AddFreeDimensionOverrideByName(const char* name, int64_t value) {
       Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(this->p_, name, value));
@@ -297,7 +305,14 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
 
           // Apply execution providers
           if (epName == "cpu") {
-            // ignore, handled by default
+            int use_arena = 0;
+            if (providerObj && providerObj->hasProperty(runtime, "useArena")) {
+              auto useArena = providerObj->getProperty(runtime, "useArena");
+              if (useArena.isBool() && useArena.asBool()) {
+                use_arena = 1;
+              }
+            }
+            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_CPU(use_arena);
           } else if (epName == "xnnpack") {
             sessionOptions.AppendExecutionProvider("XNNPACK");
           }
@@ -309,25 +324,25 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
 #ifdef USE_NNAPI
           else if (epName == "nnapi") {
             uint32_t nnapi_flags = 0;
-            if (providerObj->hasProperty(runtime, "useFP16")) {
+            if (providerObj && providerObj->hasProperty(runtime, "useFP16")) {
               auto useFP16 = providerObj->getProperty(runtime, "useFP16");
               if (useFP16.isBool() && useFP16.asBool()) {
                 nnapi_flags |= NNAPI_FLAG_USE_FP16;
               }
             }
-            if (providerObj->hasProperty(runtime, "useNCHW")) {
+            if (providerObj && providerObj->hasProperty(runtime, "useNCHW")) {
               auto useNCHW = providerObj->getProperty(runtime, "useNCHW");
               if (useNCHW.isBool() && useNCHW.asBool()) {
                 nnapi_flags |= NNAPI_FLAG_USE_NCHW;
               }
             }
-            if (providerObj->hasProperty(runtime, "cpuDisabled")) {
+            if (providerObj && providerObj->hasProperty(runtime, "cpuDisabled")) {
               auto cpuDisabled = providerObj->getProperty(runtime, "cpuDisabled");
               if (cpuDisabled.isBool() && cpuDisabled.asBool()) {
                 nnapi_flags |= NNAPI_FLAG_CPU_DISABLED;
               }
             }
-            if (providerObj->hasProperty(runtime, "cpuOnly")) {
+            if (providerObj && providerObj->hasProperty(runtime, "cpuOnly")) {
               auto cpuOnly = providerObj->getProperty(runtime, "cpuOnly");
               if (cpuOnly.isBool() && cpuOnly.asBool()) {
                 nnapi_flags |= NNAPI_FLAG_CPU_ONLY;
@@ -339,13 +354,13 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
 #ifdef USE_QNN
           else if (epName == "qnn") {
             std::unordered_map<std::string, std::string> options;
-            if (providerObj->hasProperty(runtime, "backendType")) {
+            if (providerObj && providerObj->hasProperty(runtime, "backendType")) {
               options["backendType"] = providerObj->getProperty(runtime, "backendType").asString(runtime).utf8(runtime);
             }
-            if (providerObj->hasProperty(runtime, "backendPath")) {
+            if (providerObj && providerObj->hasProperty(runtime, "backendPath")) {
               options["backendPath"] = providerObj->getProperty(runtime, "backendPath").asString(runtime).utf8(runtime);
             }
-            if (providerObj->hasProperty(runtime, "enableFp16Precision")) {
+            if (providerObj && providerObj->hasProperty(runtime, "enableFp16Precision")) {
               auto enableFp16Precision = providerObj->getProperty(runtime, "enableFp16Precision");
               if (enableFp16Precision.isBool() && enableFp16Precision.asBool()) {
                 options["enableFp16Precision"] = "1";
