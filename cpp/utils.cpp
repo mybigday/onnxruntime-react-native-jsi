@@ -6,19 +6,17 @@ bool isTypedArray(Runtime &runtime, const Object &jsObj) {
   return true;
 }
 
-std::vector<std::string> getObjectKeys(Runtime& runtime, const Object& obj) {
-  std::vector<std::string> keys;
-  auto keysArray = runtime.global()
-    .getPropertyAsObject(runtime, "Object")
-    .getPropertyAsObject(runtime, "keys")
-    .asFunction(runtime)
-    .call(runtime, obj)
-    .asObject(runtime)
-    .asArray(runtime);
-  size_t length = keysArray.size(runtime);
-  keys.reserve(length);
-  for (size_t i = 0; i < length; i++) {
-    keys.push_back(keysArray.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime));
+void for_each(Runtime &runtime, const Object &object, const std::function<void(const std::string&, const Value&, size_t)> &callback) {
+  auto names = object.getPropertyNames(runtime);
+  for (size_t i = 0; i < names.size(runtime); i++) {
+    auto key = names.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime);
+    auto value = object.getProperty(runtime, key.c_str());
+    callback(key, value, i);
   }
-  return keys;
+}
+
+void for_each(Runtime &runtime, const Array &array, const std::function<void(const Value&, size_t)> &callback) {
+  for (size_t i = 0; i < array.size(runtime); i++) {
+    callback(array.getValueAtIndex(runtime, i), i);
+  }
 }

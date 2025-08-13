@@ -4,7 +4,14 @@
 #include "log.h"
 #include "utils.h"
 #include "AsyncWorker.hpp"
+#ifdef USE_NNAPI
+#include <nnapi_provider_factory.h>
+#endif
 #include <stdexcept>
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include <utility>
 
 namespace onnxruntimereactnativejsi {
 
@@ -80,13 +87,28 @@ void InferenceSessionHostObject::set(Runtime& runtime, const PropNameID& name, c
   throw JSError(runtime, "InferenceSession properties are read-only");
 }
 
+// implement AddFreeDimensionOverrideByName for SessionOptions
+class ExtendedSessionOptions : public Ort::SessionOptions {
+  public:
+    ExtendedSessionOptions() = default;
+
+    void AddFreeDimensionOverrideByName(const char* name, int64_t value) {
+      Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(this->p_, name, value));
+    }
+#ifdef USE_NNAPI
+    void AppendExecutionProvider_Nnapi(uint32_t nnapi_flags) {
+      Ort::ThrowOnError((OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
+    }
+#endif
+};
+
 void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::SessionOptions& sessionOptions) {
   if (!optionsValue.isObject()) {
     return; // Skip if not an object
   }
-  
+
   auto options = optionsValue.asObject(runtime);
-  
+
   try {
     // intraOpNumThreads
     if (options.hasProperty(runtime, "intraOpNumThreads")) {
@@ -107,6 +129,20 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         if (numThreads > 0) {
           sessionOptions.SetInterOpNumThreads(numThreads);
         }
+      }
+    }
+    
+    // freeDimensionOverrides
+    if (options.hasProperty(runtime, "freeDimensionOverrides")) {
+      auto prop = options.getProperty(runtime, "freeDimensionOverrides");
+      if (prop.isObject()) {
+        auto overrides = prop.asObject(runtime);
+        for_each(runtime, overrides, [&](const std::string& key, const Value& value, size_t index) {
+          reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AddFreeDimensionOverrideByName(
+            key.c_str(),
+            static_cast<int64_t>(value.asNumber())
+          );
+        });
       }
     }
     
@@ -212,42 +248,122 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
+
+    // externalData
+    if (options.hasProperty(runtime, "externalData")) {
+      auto prop = options.getProperty(runtime, "externalData").asObject(runtime);
+      if (prop.isArray(runtime)) {
+        auto externalDataArray = prop.asArray(runtime);
+        std::vector<std::string> paths;
+        std::vector<char*> buffs;
+        std::vector<size_t> sizes;
+        for_each(runtime, externalDataArray, [&](const Value& value, size_t index) {
+          if (value.isObject()) {
+            auto externalDataObject = value.asObject(runtime);
+            if (externalDataObject.hasProperty(runtime, "path")) {
+              auto pathValue = externalDataObject.getProperty(runtime, "path");
+              if (pathValue.isString()) {
+                paths.push_back(pathValue.asString(runtime).utf8(runtime));
+              }
+            }
+            if (externalDataObject.hasProperty(runtime, "data")) {
+              auto dataValue = externalDataObject.getProperty(runtime, "data").asObject(runtime);
+              if (isTypedArray(runtime, dataValue)) {
+                auto arrayBuffer = dataValue.getProperty(runtime, "buffer").asObject(runtime).getArrayBuffer(runtime);
+                buffs.push_back(reinterpret_cast<char*>(arrayBuffer.data(runtime)));
+                sizes.push_back(arrayBuffer.size(runtime));
+              }
+            }
+          }
+        });
+        sessionOptions.AddExternalInitializersFromFilesInMemory(paths, buffs, sizes);
+      }
+    }
     
     // executionProviders
     if (options.hasProperty(runtime, "executionProviders")) {
       auto prop = options.getProperty(runtime, "executionProviders");
       if (prop.isObject() && prop.asObject(runtime).isArray(runtime)) {
-        auto providersArray = prop.asObject(runtime).asArray(runtime);
-        std::vector<std::string> providers;
-        
-        for (size_t i = 0; i < providersArray.size(runtime); ++i) {
-          auto providerValue = providersArray.getValueAtIndex(runtime, i);
-          if (providerValue.isString()) {
-            providers.push_back(providerValue.asString(runtime).utf8(runtime));
-          } else if (providerValue.isObject()) {
-            // For provider objects, extract the name property
-            auto providerObj = providerValue.asObject(runtime);
-            if (providerObj.hasProperty(runtime, "name")) {
-              auto nameValue = providerObj.getProperty(runtime, "name");
-              if (nameValue.isString()) {
-                providers.push_back(nameValue.asString(runtime).utf8(runtime));
+        auto providers = prop.asObject(runtime).asArray(runtime);
+        for_each(runtime, providers, [&](const Value& epValue, size_t index) {
+          std::string epName;
+          std::unique_ptr<Object> providerObj;
+          if (epValue.isString()) {
+            epName = epValue.asString(runtime).utf8(runtime);
+          } else if (epValue.isObject()) {
+            providerObj = std::make_unique<Object>(epValue.asObject(runtime));
+            epName = providerObj->getProperty(runtime, "name").asString(runtime).utf8(runtime);
+          }
+
+          // Apply execution providers
+          if (epName == "cpu") {
+            // ignore, handled by default
+          } else if (epName == "xnnpack") {
+            sessionOptions.AppendExecutionProvider("XNNPACK");
+          }
+#ifdef __APPLE__
+          else if (epName == "coreml") {
+            sessionOptions.AppendExecutionProvider_CoreML();
+          }
+#endif
+#ifdef USE_NNAPI
+          else if (epName == "nnapi") {
+            uint32_t nnapi_flags = 0;
+            if (providerObj->hasProperty(runtime, "useFP16")) {
+              auto useFP16 = providerObj->getProperty(runtime, "useFP16");
+              if (useFP16.isBool() && useFP16.asBool()) {
+                nnapi_flags |= NNAPI_FLAG_USE_FP16;
               }
             }
+            if (providerObj->hasProperty(runtime, "useNCHW")) {
+              auto useNCHW = providerObj->getProperty(runtime, "useNCHW");
+              if (useNCHW.isBool() && useNCHW.asBool()) {
+                nnapi_flags |= NNAPI_FLAG_USE_NCHW;
+              }
+            }
+            if (providerObj->hasProperty(runtime, "cpuDisabled")) {
+              auto cpuDisabled = providerObj->getProperty(runtime, "cpuDisabled");
+              if (cpuDisabled.isBool() && cpuDisabled.asBool()) {
+                nnapi_flags |= NNAPI_FLAG_CPU_DISABLED;
+              }
+            }
+            if (providerObj->hasProperty(runtime, "cpuOnly")) {
+              auto cpuOnly = providerObj->getProperty(runtime, "cpuOnly");
+              if (cpuOnly.isBool() && cpuOnly.asBool()) {
+                nnapi_flags |= NNAPI_FLAG_CPU_ONLY;
+              }
+            }
+            sessionOptions.AppendExecutionProvider_Nnapi(nnapi_flags);
           }
-        }
-        
-        // Apply execution providers
-        for (const auto& provider : providers) {
-          if (provider == "cpu") {
-            // sessionOptions.AppendExecutionProvider_CPU(OrtCPUProviderOptions{});
-            // nothing to do
+#endif
+#ifdef USE_QNN
+          else if (epName == "qnn") {
+            std::unordered_map<std::string, std::string> options;
+            if (providerObj->hasProperty(runtime, "backendType")) {
+              options["backendType"] = providerObj->getProperty(runtime, "backendType").asString(runtime).utf8(runtime);
+            }
+            if (providerObj->hasProperty(runtime, "backendPath")) {
+              options["backendPath"] = providerObj->getProperty(runtime, "backendPath").asString(runtime).utf8(runtime);
+            }
+            if (providerObj->hasProperty(runtime, "enableFp16Precision")) {
+              auto enableFp16Precision = providerObj->getProperty(runtime, "enableFp16Precision");
+              if (enableFp16Precision.isBool() && enableFp16Precision.asBool()) {
+                options["enableFp16Precision"] = "1";
+              } else {
+                options["enableFp16Precision"] = "0";
+              }
+            }
+            sessionOptions.AppendExecutionProvider("QNN", options);
           }
-          // Note: Other providers like CUDA, CoreML, NNAPI would need additional setup
-          // For now, we support CPU which is always available
-        }
+#endif
+          else {
+            throw JSError(runtime, "Unsupported execution provider: " + epName);
+          }
+        });
       }
     }
-    
+  } catch (const JSError& e) {
+    throw e;
   } catch (const std::exception& e) {
     throw JSError(runtime, "Failed to parse session options: " + std::string(e.what()));
   }
@@ -369,34 +485,34 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       if (count > 2 && !arguments[2].isUndefined()) {
         parseRunOptions(runtime, arguments[2], runOptions_);
       }
-      // feedObject
-      auto feedObject = arguments[0].asObject(runtime);
-      auto keys = getObjectKeys(runtime, feedObject);
-      for (const auto& key : keys) {
-        inputNames.push_back(strdup(key.c_str()));
+      { // feedObject
+        auto feedObject = arguments[0].asObject(runtime);
+        for_each(runtime, feedObject, [&](const std::string& key, const Value& value, size_t index) {
+          inputNames.push_back(strdup(key.c_str()));
+          inputValues.push_back(
+            TensorUtils::createOrtValueFromJSTensor(
+              runtime,
+              value.asObject(runtime),
+              session_->memoryInfo_
+            )
+          );
+        });
       }
-      for (const auto& key : inputNames) {
-        inputValues.push_back(
-          TensorUtils::createOrtValueFromJSTensor(
-            runtime,
-            feedObject.getProperty(runtime, key).asObject(runtime),
-            session_->memoryInfo_
-          )
-        );
-      }
-      // outputObject
-      auto outputObject = arguments[1].asObject(runtime);
-      keys = getObjectKeys(runtime, outputObject);
-      for (const auto& key : keys) {
-        outputNames.push_back(strdup(key.c_str()));
-      }
-      outputValues.resize(outputNames.size());
-      for (size_t i = 0; i < outputNames.size(); ++i) {
-        auto key = outputNames[i];
-        auto tensorObj = outputObject.getProperty(runtime, key);
-        if (tensorObj.isObject() && TensorUtils::isTensor(runtime, tensorObj.asObject(runtime))) {
-          outputValues[i] = TensorUtils::createOrtValueFromJSTensor(runtime, tensorObj.asObject(runtime), session_->memoryInfo_);
-        }
+      { // outputObject
+        auto outputObject = arguments[1].asObject(runtime);
+        outputValues.resize(outputObject.getPropertyNames(runtime).size(runtime));
+        for_each(runtime, outputObject, [&](const std::string& key, const Value& value, size_t index) {
+          outputNames.push_back(strdup(key.c_str()));
+          if (value.isObject() && TensorUtils::isTensor(runtime, value.asObject(runtime))) {
+            outputValues[index] = (
+              TensorUtils::createOrtValueFromJSTensor(
+                runtime,
+                value.asObject(runtime),
+                session_->memoryInfo_
+              )
+            );
+          }
+        });
       }
     }
 
