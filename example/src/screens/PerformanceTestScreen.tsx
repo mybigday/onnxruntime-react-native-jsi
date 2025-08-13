@@ -70,8 +70,10 @@ type BenchmarkReport = {
   peakMem: number;
 };
 
-const getPeakMemoryUsage = (prevPeakMemoryUsage: number): number => {
-  const memoryUsage = DeviceInfo.getUsedMemorySync();
+const getPeakMemoryUsage = async (
+  prevPeakMemoryUsage: number
+): Promise<number> => {
+  const memoryUsage = await DeviceInfo.getUsedMemory();
   return Math.max(prevPeakMemoryUsage, memoryUsage);
 };
 
@@ -80,14 +82,17 @@ const benchmark = async (
   signal?: AbortSignal
 ): Promise<BenchmarkReport> => {
   const times = [];
-  let peakMem = getPeakMemoryUsage(-1);
+  let peakMem = -1;
+  const interval = setInterval(async () => {
+    peakMem = await getPeakMemoryUsage(peakMem);
+  }, 200);
   for (let i = 0; i < runCount && !signal?.aborted; i++) {
     const start = performance.now();
     await fn();
     const end = performance.now();
-    peakMem = getPeakMemoryUsage(peakMem);
     times.push(end - start);
   }
+  clearInterval(interval);
   return { times, peakMem };
 };
 
