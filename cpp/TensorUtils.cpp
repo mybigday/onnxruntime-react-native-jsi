@@ -138,14 +138,12 @@ Ort::Value TensorUtils::createOrtValueFromJSTensor(
       throw JSError(runtime, "Tensor data must be an array of strings");
     }
     auto array = dataObj.asArray(runtime);
-    std::vector<char*> arrayData(array.size(runtime));
-    for (size_t i = 0; i < arrayData.size(); ++i) {
+    auto size = array.size(runtime);
+    data = new char*[size];
+    for (size_t i = 0; i < size; ++i) {
       auto item = array.getValueAtIndex(runtime, i);
-      auto str = item.asString(runtime).utf8(runtime);
-      arrayData[i] = strdup(str.c_str());
+      static_cast<char**>(data)[i] = strdup(item.toString(runtime).utf8(runtime).c_str());
     }
-    data = new char*[arrayData.size()];
-    memcpy(data, arrayData.data(), arrayData.size() * sizeof(char*));
   } else {
     if (!isTypedArray(runtime, dataObj)) {
       throw JSError(runtime, "Tensor data must be a TypedArray");
@@ -174,41 +172,46 @@ Ort::Value TensorUtils::createOrtValueFromJSTensor(
 }
 
 Object TensorUtils::createJSTensorFromOrtValue(Runtime& runtime, Ort::Value& ortValue, const Object& tensorConstructor) {
-  // Get tensor info
   auto typeInfo = ortValue.GetTensorTypeAndShapeInfo();
   auto shape = typeInfo.GetShape();
   auto elementType = typeInfo.GetElementType();
-  
-  // Prepare constructor arguments: type, data, dims
+
   std::string typeStr = dataTypeToString(elementType);
-  
-  // Create dims array
+
   auto dimsArray = Array(runtime, shape.size());
   for (size_t j = 0; j < shape.size(); ++j) {
     dimsArray.setValueAtIndex(runtime, j, Value(static_cast<double>(shape[j])));
   }
-  
-  // Create TypedArray with tensor data (copy data for JSI transfer)
-  void* rawData = ortValue.GetTensorMutableRawData();
-  size_t elementCount = ortValue.GetTensorTypeAndShapeInfo().GetElementCount();
-  size_t elementSize = getElementSize(elementType);
-  size_t dataSize = elementCount * elementSize;
-  
-  // Create TypedArray based on data type
-  auto typedArrayCtor = getTypedArrayConstructor(runtime, elementType);
-  // Create TypedArray instance with the ArrayBuffer
-  auto typedArrayInstance = typedArrayCtor.asFunction(runtime).callAsConstructor(runtime, static_cast<double>(elementCount));
 
-  auto buffer = typedArrayInstance.asObject(runtime).getProperty(runtime, "buffer").asObject(runtime).getArrayBuffer(runtime);
-  memcpy(buffer.data(runtime), rawData, dataSize);
-  
-  // Call: new Tensor(type, data, dims)
-  // Create new Tensor instance using the constructor
-  auto tensorInstance = tensorConstructor
-    .asFunction(runtime)
-    .callAsConstructor(runtime, typeStr, typedArrayInstance, dimsArray);
-  
-  return tensorInstance.asObject(runtime);
+  if (elementType != ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING) {
+    void* rawData = ortValue.GetTensorMutableRawData();
+    size_t elementCount = ortValue.GetTensorTypeAndShapeInfo().GetElementCount();
+    size_t elementSize = getElementSize(elementType);
+    size_t dataSize = elementCount * elementSize;
+
+    auto typedArrayCtor = getTypedArrayConstructor(runtime, elementType);
+    auto typedArrayInstance = typedArrayCtor.asFunction(runtime).callAsConstructor(runtime, static_cast<double>(elementCount));
+
+    auto buffer = typedArrayInstance.asObject(runtime).getProperty(runtime, "buffer").asObject(runtime).getArrayBuffer(runtime);
+    memcpy(buffer.data(runtime), rawData, dataSize);
+
+    auto tensorInstance = tensorConstructor
+      .asFunction(runtime)
+      .callAsConstructor(runtime, typeStr, typedArrayInstance, dimsArray);
+    
+    return tensorInstance.asObject(runtime);
+  } else {
+    auto strArray = Array(runtime, shape.size());
+    for (size_t j = 0; j < shape.size(); ++j) {
+      strArray.setValueAtIndex(runtime, j, Value(runtime, String::createFromUtf8(runtime, "")));
+    }
+
+    auto tensorInstance = tensorConstructor
+      .asFunction(runtime)
+      .callAsConstructor(runtime, typeStr, strArray, dimsArray);
+    
+    return tensorInstance.asObject(runtime);
+  }
 }
 
 } // namespace onnxruntimereactnativejsi

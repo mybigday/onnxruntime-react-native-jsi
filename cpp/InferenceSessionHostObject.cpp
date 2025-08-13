@@ -488,7 +488,7 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       { // feedObject
         auto feedObject = arguments[0].asObject(runtime);
         for_each(runtime, feedObject, [&](const std::string& key, const Value& value, size_t index) {
-          inputNames.push_back(strdup(key.c_str()));
+          inputNames.push_back(key);
           inputValues.push_back(
             TensorUtils::createOrtValueFromJSTensor(
               runtime,
@@ -504,7 +504,7 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
         outputValues.resize(size);
         jsOutputValues.resize(size);
         for_each(runtime, outputObject, [&](const std::string& key, const Value& value, size_t index) {
-          outputNames.push_back(strdup(key.c_str()));
+          outputNames.push_back(key);
           if (value.isObject() && TensorUtils::isTensor(runtime, value.asObject(runtime))) {
             outputValues[index] = (
               TensorUtils::createOrtValueFromJSTensor(
@@ -520,11 +520,15 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
     }
 
     void Execute() override {
+      std::vector<const char*> inputNamesCStr(inputNames.size());
+      std::vector<const char*> outputNamesCStr(outputNames.size());
+      std::transform(inputNames.begin(), inputNames.end(), inputNamesCStr.begin(), [](const std::string& name) { return name.c_str(); });
+      std::transform(outputNames.begin(), outputNames.end(), outputNamesCStr.begin(), [](const std::string& name) { return name.c_str(); });
       session_->session_->Run(runOptions_,
-                              inputNames.empty() ? nullptr : inputNames.data(),
+                              inputNames.empty() ? nullptr : inputNamesCStr.data(),
                               inputValues.empty() ? nullptr : inputValues.data(),
                               inputValues.size(),
-                              outputNames.empty() ? nullptr : outputNames.data(),
+                              outputNames.empty() ? nullptr : outputNamesCStr.data(),
                               outputNames.empty() ? nullptr : outputValues.data(),
                               outputNames.size());
     }
@@ -533,11 +537,11 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       auto resultObject = Object(runtime);
       auto tensorConstructor = getTensorConstructor();
       for (size_t i = 0; i < outputValues.size(); ++i) {
-        if (jsOutputValues[i]) {
-          resultObject.setProperty(runtime, outputNames[i], jsOutputValues[i]->lock(runtime));
+        if (jsOutputValues[i] && outputValues[i].IsTensor()) {
+          resultObject.setProperty(runtime, outputNames[i].c_str(), jsOutputValues[i]->lock(runtime));
         } else {
           auto tensorObj = TensorUtils::createJSTensorFromOrtValue(runtime, outputValues[i], *tensorConstructor);
-          resultObject.setProperty(runtime, outputNames[i], Value(runtime, tensorObj));
+          resultObject.setProperty(runtime, outputNames[i].c_str(), Value(runtime, tensorObj));
         }
       }
       return Value(runtime, resultObject);
@@ -546,9 +550,9 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
   private:
     std::shared_ptr<InferenceSessionHostObject> session_;
     Ort::RunOptions runOptions_;
-    std::vector<const char*> inputNames;
+    std::vector<std::string> inputNames;
     std::vector<Ort::Value> inputValues;
-    std::vector<const char*> outputNames;
+    std::vector<std::string> outputNames;
     std::vector<Ort::Value> outputValues;
     std::vector<std::unique_ptr<WeakObject>> jsOutputValues;
 };
