@@ -6,6 +6,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import ChatScreen from './screens/ChatScreen';
 import ASRScreen from './screens/ASRScreen';
 import TTSScreen from './screens/TTSScreen';
+import PerformanceTestScreen from './screens/PerformanceTestScreen';
 
 export type RootStackParamList = {
   TaskSelect: undefined;
@@ -13,6 +14,7 @@ export type RootStackParamList = {
   Chat: undefined;
   ASR: undefined;
   TTS: undefined;
+  PerformanceTest: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -46,6 +48,11 @@ export default function App() {
             name="TTS"
             component={TTSScreen}
             options={{ title: 'TTS' }}
+          />
+          <Stack.Screen
+            name="PerformanceTest"
+            component={PerformanceTestScreen}
+            options={{ title: 'Performance Test' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

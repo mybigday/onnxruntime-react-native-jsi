@@ -9,6 +9,7 @@ type RootStackParamList = {
   Settings: undefined;
   Interact: undefined;
   Memory: undefined;
+  PerformanceTest: undefined;
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskSelect'>;
@@ -55,6 +56,14 @@ export default function TaskSelectScreen({ navigation }: Props) {
         }}
       >
         <Text style={styles.buttonText}>Text to Audio (TTS)</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => {
+          navigation.navigate('PerformanceTest');
+        }}
+      >
+        <Text style={styles.buttonText}>Performance Test</Text>
       </TouchableOpacity>
     </View>
   );

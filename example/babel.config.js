@@ -13,6 +13,9 @@ module.exports = getConfig(
         {
           alias: {
             'onnxruntime-react-native': 'onnxruntime-react-native-jsi',
+            '@force/onnxruntime-react-native': 'onnxruntime-react-native',
+            '@force/onnxruntime-react-native-jsi':
+              'onnxruntime-react-native-jsi',
           },
         },
       ],
