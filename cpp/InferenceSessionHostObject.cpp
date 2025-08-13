@@ -97,7 +97,7 @@ class ExtendedSessionOptions : public Ort::SessionOptions {
     }
 #ifdef USE_NNAPI
     void AppendExecutionProvider_Nnapi(uint32_t nnapi_flags) {
-      Ort::ThrowOnError((OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
+      Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
     }
 #endif
 };
@@ -333,7 +333,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
                 nnapi_flags |= NNAPI_FLAG_CPU_ONLY;
               }
             }
-            sessionOptions.AppendExecutionProvider_Nnapi(nnapi_flags);
+            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_Nnapi(nnapi_flags);
           }
 #endif
 #ifdef USE_QNN
@@ -500,7 +500,9 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       }
       { // outputObject
         auto outputObject = arguments[1].asObject(runtime);
-        outputValues.resize(outputObject.getPropertyNames(runtime).size(runtime));
+        auto size = outputObject.getPropertyNames(runtime).size(runtime);
+        outputValues.resize(size);
+        jsOutputValues.resize(size);
         for_each(runtime, outputObject, [&](const std::string& key, const Value& value, size_t index) {
           outputNames.push_back(strdup(key.c_str()));
           if (value.isObject() && TensorUtils::isTensor(runtime, value.asObject(runtime))) {
@@ -511,6 +513,7 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
                 session_->memoryInfo_
               )
             );
+            jsOutputValues[index] = std::make_unique<WeakObject>(runtime, value.asObject(runtime));
           }
         });
       }
@@ -530,8 +533,12 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       auto resultObject = Object(runtime);
       auto tensorConstructor = getTensorConstructor();
       for (size_t i = 0; i < outputValues.size(); ++i) {
-        auto tensorObj = TensorUtils::createJSTensorFromOrtValue(runtime, outputValues[i], *tensorConstructor);
-        resultObject.setProperty(runtime, outputNames[i], Value(runtime, tensorObj));
+        if (jsOutputValues[i]) {
+          resultObject.setProperty(runtime, outputNames[i], jsOutputValues[i]->lock(runtime));
+        } else {
+          auto tensorObj = TensorUtils::createJSTensorFromOrtValue(runtime, outputValues[i], *tensorConstructor);
+          resultObject.setProperty(runtime, outputNames[i], Value(runtime, tensorObj));
+        }
       }
       return Value(runtime, resultObject);
     }
@@ -543,6 +550,7 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
     std::vector<Ort::Value> inputValues;
     std::vector<const char*> outputNames;
     std::vector<Ort::Value> outputValues;
+    std::vector<std::unique_ptr<WeakObject>> jsOutputValues;
 };
 
 Value InferenceSessionHostObject::runMethod(Runtime& runtime, const Value* arguments, size_t count) {

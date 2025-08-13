@@ -18,9 +18,6 @@ public:
   std::vector<PropNameID> getPropertyNames(Runtime& rt) override;
   Value get(Runtime& runtime, const PropNameID& name) override;
   void set(Runtime& runtime, const PropNameID& name, const Value& value) override;
-
-  void loadModel(Runtime& runtime, const std::string& modelPath, const Ort::SessionOptions& options);
-  void loadModel(Runtime& runtime, const void* modelData, size_t modelDataLength, const Ort::SessionOptions& options);
   
   void dispose();
 
