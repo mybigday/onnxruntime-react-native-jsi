@@ -264,7 +264,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
                 flags = static_cast<int>(flagsValue.asNumber());
               }
             }
-            sessionOptions.AppendExecutionProvider_CoreML(flags);
+            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_CoreML(flags);
           }
 #endif
 #ifdef USE_NNAPI
