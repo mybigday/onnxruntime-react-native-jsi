@@ -5,31 +5,23 @@
 #include <string>
 #include <vector>
 
-using namespace facebook::jsi;
-
 namespace onnxruntimereactnativejsi {
 
-/**
- * Utility functions for ONNX Runtime tensor operations and conversions
- */
 class TensorUtils {
 public:
-  // Tensor creation from onnxruntime-common Tensor objects
   static Ort::Value createOrtValueFromJSTensor(
-    Runtime& runtime, 
-    const Object& tensorObj, 
+    facebook::jsi::Runtime& runtime,
+    const facebook::jsi::Object& tensorObj,
     const Ort::MemoryInfo& memoryInfo
   );
   
-  // Tensor conversion to onnxruntime-common compatible JS objects
-  static Object createJSTensorFromOrtValue(
-    Runtime& runtime, 
+  static facebook::jsi::Object createJSTensorFromOrtValue(
+    facebook::jsi::Runtime& runtime, 
     Ort::Value& ortValue,
-    const Object& tensorConstructor
+    const facebook::jsi::Object& tensorConstructor
   );
   
-  // Helper to parse tensor properties from JS object
-  static bool isTensor(Runtime& runtime, const Object& obj);
+  static bool isTensor(facebook::jsi::Runtime& runtime, const facebook::jsi::Object& obj);
 };
 
 } // namespace onnxruntimereactnativejsi

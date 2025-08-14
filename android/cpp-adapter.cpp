@@ -5,10 +5,11 @@
 #include <ReactCommon/CallInvokerHolder.h>
 #include <fbjni/fbjni.h>
 #include <fbjni/detail/Registration.h>
-#include "onnxruntime-react-native-jsi.h"
-#include "global.h"
+#include "JsiMain.h"
 
 using namespace facebook;
+
+static std::shared_ptr<onnxruntimereactnativejsi::Env> env;
 
 class OnnxruntimeReactNativeJsiModule : public jni::JavaClass<OnnxruntimeReactNativeJsiModule> {
 public:
@@ -29,11 +30,11 @@ private:
   ) {
     auto runtime = reinterpret_cast<jsi::Runtime*>(jsContextNativePointer);
     auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
-    onnxruntimereactnativejsi::install(*runtime, jsCallInvoker);
+    env = onnxruntimereactnativejsi::install(*runtime, jsCallInvoker);
   }
 
   static void nativeCleanup(jni::alias_ref<jni::JObject> thiz) {
-    onnxruntimereactnativejsi::cleanup();
+    env.reset();
   }
 };
 

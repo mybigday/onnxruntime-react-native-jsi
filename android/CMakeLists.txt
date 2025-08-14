@@ -21,11 +21,12 @@ set_target_properties(onnxruntime PROPERTIES IMPORTED_LOCATION ${onnxruntime_lin
 
 # Create the shared library
 add_library(onnxruntime-react-native-jsi SHARED
-    ../cpp/onnxruntime-react-native-jsi.cpp
+    ../cpp/JsiMain.cpp
     ../cpp/InferenceSessionHostObject.cpp
     ../cpp/TensorUtils.cpp
-    ../cpp/global.cpp
-    ../cpp/utils.cpp
+    ../cpp/JsiUtils.cpp
+    ../cpp/SessionUtils.cpp
+    ../cpp/AsyncWorker.cpp
     cpp-adapter.cpp
 )
 

@@ -82,10 +82,11 @@ const benchmark = async (
   signal?: AbortSignal
 ): Promise<BenchmarkReport> => {
   const times = [];
-  let peakMem = -1;
+  let initialMemoryUsage = await DeviceInfo.getUsedMemory();
+  let peakMem = await getPeakMemoryUsage(-1);
   const interval = setInterval(async () => {
     peakMem = await getPeakMemoryUsage(peakMem);
-  }, 200);
+  }, 100);
   for (let i = 0; i < runCount && !signal?.aborted; i++) {
     const start = performance.now();
     await fn();
@@ -93,6 +94,7 @@ const benchmark = async (
     times.push(end - start);
   }
   clearInterval(interval);
+  peakMem -= initialMemoryUsage;
   return { times, peakMem };
 };
 
@@ -115,6 +117,16 @@ const formatTime = (time: number) => {
   } else {
     return `${(time / 1000).toFixed(2)} s`;
   }
+};
+
+const options = {
+  // enableCpuMemArena: true,
+  // enableMemPattern: true,
+  graphOptimizationLevel: 'all',
+  interOpNumThreads: 4,
+  freeDimensionOverrides: {
+    batch_size: 1,
+  },
 };
 
 export default function PerformanceTestScreen() {
@@ -169,12 +181,13 @@ export default function PerformanceTestScreen() {
       {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('Benchmarking JSI InferenceSession...');
-        const session = await JSIInferenceSession.create(cachePath);
+        const session = await JSIInferenceSession.create(cachePath, options);
         sessionRef.current = session;
         report = await benchmark(async () => {
-          await (session as InferenceSession).run(input);
+          await session.run(input);
         }, abortRef.current?.signal);
-        await (session as InferenceSession).release();
+        await session.release();
+        sessionRef.current = null;
         const result = calculateResult(report);
         console.log('Benchmarking JSI InferenceSession done');
 
@@ -190,9 +203,7 @@ export default function PerformanceTestScreen() {
       {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('Benchmarking JSI InferenceSession (Pre-allocated)...');
-        const session = (await JSIInferenceSession.create(
-          cachePath
-        )) as InferenceSession;
+        const session = await JSIInferenceSession.create(cachePath, options);
         sessionRef.current = session;
         const fetches = {
           logits: new OrtTensor(
@@ -206,6 +217,7 @@ export default function PerformanceTestScreen() {
         }, abortRef.current?.signal);
         await session.release();
         fetches.logits.dispose();
+        sessionRef.current = null;
         const result = calculateResult(report);
         console.log('Benchmarking JSI InferenceSession (Pre-allocated) done');
 
@@ -221,12 +233,13 @@ export default function PerformanceTestScreen() {
       {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('Benchmarking Old InferenceSession...');
-        const session = await OldInferenceSession.create(cachePath);
+        const session = await OldInferenceSession.create(cachePath, options);
         sessionRef.current = session;
         report = await benchmark(async () => {
-          await (session as InferenceSession).run(input);
+          await session.run(input);
         }, abortRef.current?.signal);
-        await (session as InferenceSession).release();
+        await session.release();
+        sessionRef.current = null;
         const result = calculateResult(report);
         console.log('Benchmarking Old InferenceSession done');
 

@@ -1,4 +1,6 @@
-#include "utils.h"
+#include "JsiUtils.h"
+
+using namespace facebook::jsi;
 
 bool isTypedArray(Runtime &runtime, const Object &jsObj) {
   if (!jsObj.hasProperty(runtime, "buffer")) return false;
@@ -6,7 +8,7 @@ bool isTypedArray(Runtime &runtime, const Object &jsObj) {
   return true;
 }
 
-void for_each(Runtime &runtime, const Object &object, const std::function<void(const std::string&, const Value&, size_t)> &callback) {
+void forEach(Runtime &runtime, const Object &object, const std::function<void(const std::string&, const Value&, size_t)> &callback) {
   auto names = object.getPropertyNames(runtime);
   for (size_t i = 0; i < names.size(runtime); i++) {
     auto key = names.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime);
@@ -15,7 +17,7 @@ void for_each(Runtime &runtime, const Object &object, const std::function<void(c
   }
 }
 
-void for_each(Runtime &runtime, const Array &array, const std::function<void(const Value&, size_t)> &callback) {
+void forEach(Runtime &runtime, const Array &array, const std::function<void(const Value&, size_t)> &callback) {
   for (size_t i = 0; i < array.size(runtime); i++) {
     callback(array.getValueAtIndex(runtime, i), i);
   }

@@ -1,9 +1,10 @@
 #include "TensorUtils.h"
-#include "log.h"
-#include "utils.h"
+#include "JsiUtils.h"
 #include <stdexcept>
 #include <cstring>
 #include <unordered_map>
+
+using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
@@ -20,7 +21,7 @@ static const std::unordered_map<ONNXTensorElementDataType, const char*> dataType
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16, "float16"},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE, "float64"},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32, "uint32"},
-  {ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64, "uint64"}
+  {ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64, "uint64"},
 };
 
 static const std::unordered_map<ONNXTensorElementDataType, size_t> elementSizeMap = {
@@ -31,12 +32,12 @@ static const std::unordered_map<ONNXTensorElementDataType, size_t> elementSizeMa
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16, sizeof(int16_t)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32, sizeof(int32_t)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, sizeof(int64_t)},
+  {ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING, sizeof(char*)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL, sizeof(bool)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16, 2},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE, sizeof(double)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32, sizeof(uint32_t)},
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64, sizeof(uint64_t)},
-  {ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING, sizeof(char*)},
 };
 
 static const std::unordered_map<ONNXTensorElementDataType, const char*> dataTypeToTypedArrayMap = {
@@ -55,24 +56,7 @@ static const std::unordered_map<ONNXTensorElementDataType, const char*> dataType
   {ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL, "Uint8Array"},
 };
 
-std::string dataTypeToString(ONNXTensorElementDataType dataType) {
-  auto it = dataTypeToStringMap.find(dataType);
-  if (it != dataTypeToStringMap.end()) {
-    return it->second;
-  }
-  throw std::invalid_argument("Unsupported or unknown tensor data type: " + std::to_string(static_cast<int>(dataType)));
-}
-
-ONNXTensorElementDataType stringToDataType(const std::string& typeStr) {
-  for (auto it = dataTypeToStringMap.begin(); it != dataTypeToStringMap.end(); ++it) {
-    if (it->second == typeStr) {
-      return it->first;
-    }
-  }
-  throw std::invalid_argument("Unsupported or unknown tensor data type: " + typeStr);
-}
-
-size_t getElementSize(ONNXTensorElementDataType dataType) {
+inline size_t getElementSize(ONNXTensorElementDataType dataType) {
   auto it = elementSizeMap.find(dataType);
   if (it != elementSizeMap.end()) {
     return it->second;
@@ -86,7 +70,7 @@ bool TensorUtils::isTensor(Runtime& runtime, const Object& obj) {
          obj.hasProperty(runtime, "type");
 }
 
-Object getTypedArrayConstructor(Runtime& runtime, const ONNXTensorElementDataType type) {
+inline Object getTypedArrayConstructor(Runtime& runtime, const ONNXTensorElementDataType type) {
   auto it = dataTypeToTypedArrayMap.find(type);
   if (it != dataTypeToTypedArrayMap.end()) {
     auto prop = runtime.global().getProperty(runtime, it->second);
@@ -128,7 +112,17 @@ Ort::Value TensorUtils::createOrtValueFromJSTensor(
     throw JSError(runtime, "Tensor type must be string");
   }
 
-  auto type = stringToDataType(typeProperty.asString(runtime).utf8(runtime));
+  ONNXTensorElementDataType type = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+  auto typeStr = typeProperty.asString(runtime).utf8(runtime);
+  for (auto it = dataTypeToStringMap.begin(); it != dataTypeToStringMap.end(); ++it) {
+    if (it->second == typeStr) {
+      type = it->first;
+      break;
+    }
+  }
+  if (type == ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED) {
+    throw JSError(runtime, "Unsupported tensor data type: " + typeStr);
+  }
 
   void* data = nullptr;
   auto dataObj = dataProperty.asObject(runtime);
@@ -176,7 +170,13 @@ Object TensorUtils::createJSTensorFromOrtValue(Runtime& runtime, Ort::Value& ort
   auto shape = typeInfo.GetShape();
   auto elementType = typeInfo.GetElementType();
 
-  std::string typeStr = dataTypeToString(elementType);
+  std::string typeStr;
+  auto it = dataTypeToStringMap.find(elementType);
+  if (it != dataTypeToStringMap.end()) {
+    typeStr = it->second;
+  } else {
+    throw JSError(runtime, "Unsupported tensor data type for TypedArray creation: " + std::to_string(static_cast<int>(elementType)));
+  }
 
   auto dimsArray = Array(runtime, shape.size());
   for (size_t j = 0; j < shape.size(); ++j) {

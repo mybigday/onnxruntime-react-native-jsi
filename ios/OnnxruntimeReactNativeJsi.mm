@@ -1,8 +1,9 @@
 #import "OnnxruntimeReactNativeJsi.h"
-#import "global.h"
 #import <React/RCTBridge+Private.h>
 #import <React/RCTUtils.h>
 #import <jsi/jsi.h>
+
+static std::shared_ptr<onnxruntimereactnativejsi::Env> env;
 
 @implementation OnnxruntimeReactNativeJsi
 
@@ -35,7 +36,7 @@ RCT_EXPORT_MODULE()
 
 - (void)handleJSReload
 {
-    onnxruntimereactnativejsi::cleanup();
+    env.reset();
 }
 
 - (void)setBridge:(RCTBridge *)bridge
@@ -53,7 +54,7 @@ RCT_EXPORT_MODULE()
     auto jsiRuntime = (facebook::jsi::Runtime*) cxxBridge.runtime;
     if (jsiRuntime) {
         auto jsInvoker = cxxBridge.jsCallInvoker;
-        onnxruntimereactnativejsi::install(*jsiRuntime, jsInvoker);
+        env = onnxruntimereactnativejsi::install(*jsiRuntime, jsInvoker);
     }
 }
 
