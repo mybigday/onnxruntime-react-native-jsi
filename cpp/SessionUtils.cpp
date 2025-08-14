@@ -30,6 +30,11 @@ public:
     Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
   }
 #endif
+#ifdef USE_COREML
+  void AppendExecutionProvider_CoreML(int flags) {
+    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(this->p_, flags));
+  }
+#endif
 };
 
 void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::SessionOptions& sessionOptions) {
