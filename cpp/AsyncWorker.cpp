@@ -1,13 +1,16 @@
 #include "AsyncWorker.h"
-#include <signal.h>
 
 using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
 AsyncWorker::~AsyncWorker() {
+  aborted_ = true;
+  OnAbort();
   if (thread_.joinable()) {
-    pthread_kill(thread_.native_handle(), SIGKILL);
+#ifndef __ANDROID__
+    pthread_cancel(thread_.native_handle());
+#endif
     thread_.join();
   }
 }
@@ -21,31 +24,31 @@ Value AsyncWorker::toPromise(Runtime& runtime) {
     [this](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
       this->weakResolve_ = std::make_shared<WeakObject>(runtime, arguments[0].asObject(runtime));
       this->weakReject_ = std::make_shared<WeakObject>(runtime, arguments[1].asObject(runtime));
-      thread_ = std::thread([this]() {
-        auto jsInvoker = env_->getJsInvoker();
-        if (!jsInvoker) return;
+      thread_ = std::thread([self = shared_from_this()]() {
+        auto jsInvoker = self->env_->getJsInvoker();
+        if (!jsInvoker || self->aborted_) return;
         try {
-          Execute();
-          jsInvoker->invokeAsync([this](Runtime& runtime) {
-            auto resolve = weakResolve_->lock(runtime);
+          self->Execute();
+          jsInvoker->invokeAsync([self](Runtime& runtime) {
+            auto resolve = self->weakResolve_->lock(runtime);
             if (resolve.isObject()) {
-              resolve.asObject(runtime).asFunction(runtime).call(runtime, OnSuccess(runtime));
+              resolve.asObject(runtime).asFunction(runtime).call(runtime, self->OnSuccess(runtime));
             }
             // release self
-            auto promise = weakPromise_->lock(runtime);
+            auto promise = self->weakPromise_->lock(runtime);
             if (promise.isObject()) {
               promise.asObject(runtime).setProperty(runtime, "_p", Value::undefined());
             }
           });
         } catch (const std::exception& e) {
-          error_ = std::string(e.what());
-          jsInvoker->invokeAsync([this](Runtime& runtime) {
-            auto reject = weakReject_->lock(runtime);
+          self->error_ = std::string(e.what());
+          jsInvoker->invokeAsync([self](Runtime& runtime) {
+            auto reject = self->weakReject_->lock(runtime);
             if (reject.isObject()) {
-              reject.asObject(runtime).asFunction(runtime).call(runtime, OnError(runtime, error_));
+              reject.asObject(runtime).asFunction(runtime).call(runtime, self->OnError(runtime, self->error_));
             }
             // release self
-            auto promise = weakPromise_->lock(runtime);
+            auto promise = self->weakPromise_->lock(runtime);
             if (promise.isObject()) {
               promise.asObject(runtime).setProperty(runtime, "_p", Value::undefined());
             }
