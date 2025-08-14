@@ -1,5 +1,6 @@
 #include "JsiMain.h"
 #include "InferenceSessionHostObject.h"
+#include "SessionUtils.h"
 #include "JsiHelper.hpp"
 #include <memory>
 
@@ -54,10 +55,12 @@ std::shared_ptr<Env> install(Runtime& runtime, std::shared_ptr<facebook::react::
       PropNameID::forAscii(runtime, "listSupportedBackends"),
       0,
       [](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
-        auto backends = Array(runtime, 1);
-        auto backend = Object(runtime);
-        backend.setProperty(runtime, "name", String::createFromUtf8(runtime, "cpu"));
-        backends.setValueAtIndex(runtime, 0, Value(runtime, backend));
+        auto backends = Array(runtime, supportedBackends.size());
+        for (size_t i = 0; i < supportedBackends.size(); i++) {
+          auto backend = Object(runtime);
+          backend.setProperty(runtime, "name", String::createFromUtf8(runtime, supportedBackends[i]));
+          backends.setValueAtIndex(runtime, i, Value(runtime, backend));
+        }
         return Value(runtime, backends);
       }
     );

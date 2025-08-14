@@ -14,6 +14,20 @@ using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
+const std::vector<const char*> supportedBackends = {
+  "cpu",
+  "xnnpack",
+#ifdef USE_COREML
+  "coreml",
+#endif
+#ifdef USE_NNAPI
+  "nnapi",
+#endif
+#ifdef USE_QNN
+  "qnn",
+#endif
+};
+
 class ExtendedSessionOptions : public Ort::SessionOptions {
 public:
   ExtendedSessionOptions() = default;
