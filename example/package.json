@@ -7,7 +7,8 @@
     "ios": "react-native run-ios",
     "start": "react-native start",
     "build:android": "react-native build-android --extra-params \"--no-daemon --console=plain -PreactNativeArchitectures=arm64-v8a\"",
-    "build:ios": "react-native build-ios --scheme OnnxruntimeReactNativeJsiExample --mode Debug --extra-params \"-sdk iphonesimulator CC=clang CPLUSPLUS=clang++ LD=clang LDPLUSPLUS=clang++ GCC_OPTIMIZATION_LEVEL=0 GCC_PRECOMPILE_PREFIX_HEADER=YES ASSETCATALOG_COMPILER_OPTIMIZATION=time DEBUG_INFORMATION_FORMAT=dwarf COMPILER_INDEX_STORE_ENABLE=NO\""
+    "build:ios": "react-native build-ios --scheme OnnxruntimeReactNativeJsiExample --mode Debug --extra-params \"-sdk iphonesimulator CC=clang CPLUSPLUS=clang++ LD=clang LDPLUSPLUS=clang++ GCC_OPTIMIZATION_LEVEL=0 GCC_PRECOMPILE_PREFIX_HEADER=YES ASSETCATALOG_COMPILER_OPTIMIZATION=time DEBUG_INFORMATION_FORMAT=dwarf COMPILER_INDEX_STORE_ENABLE=NO\"",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@dr.pogodin/react-native-fs": "^2.34.0",
@@ -23,7 +24,7 @@
     "react": "19.1.0",
     "react-native": "0.80.2",
     "react-native-audio-api": "^0.7.0",
-    "react-native-device-info": "^14.0.4",
+    "react-native-performance-stats": "^0.2.3",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "^4.13.1",
     "text-encoding-polyfill": "^0.6.7",

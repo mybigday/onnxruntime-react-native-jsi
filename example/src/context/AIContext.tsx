@@ -7,7 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { pipeline, TextStreamer } from '@huggingface/transformers';
-import DeviceInfo from 'react-native-device-info';
+import PerformanceStats from 'react-native-performance-stats';
+import { AudioContext } from 'react-native-audio-api';
 
 export type AITask =
   | 'text-generation'
@@ -75,13 +76,19 @@ const defaultModels: Record<AITask, string> = {
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
-const getMemoryUsage = async () =>
-  Object.fromEntries(
-    await Promise.all([
-      DeviceInfo.getTotalMemory().then((total) => ['total', total]),
-      DeviceInfo.getUsedMemory().then((used) => ['used', used]),
-    ])
-  );
+async function watchMemoryUsage<T>(fn: () => Promise<T>): Promise<[T, number]> {
+  let peakMem = -1;
+  PerformanceStats.start();
+  const listener = PerformanceStats.addListener((stats) => {
+    peakMem = Math.max(peakMem, stats.usedRam);
+  });
+  try {
+    return [await fn(), peakMem];
+  } finally {
+    listener.remove();
+    PerformanceStats.stop();
+  }
+}
 
 export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -105,9 +112,11 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
       await pipeRef.current?.dispose();
       console.log('modelId:', modelId);
       console.log('dtype:', dtype);
-      console.log('memory usage before load:', await getMemoryUsage());
-      pipeRef.current = await pipeline(task as any, modelId, opts as any);
-      console.log('memory usage after load:', await getMemoryUsage());
+      const [pipe, peakMem] = await watchMemoryUsage(() =>
+        pipeline(task as any, modelId, opts as any)
+      );
+      pipeRef.current = pipe;
+      console.log('memory usage after load:', peakMem);
       setIsLoaded(true);
     } catch (e) {
       setError(e);
@@ -151,16 +160,17 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       );
       tokens = pipeRef.current.tokenizer.encode(input).length;
-      console.log('memory usage before run:', await getMemoryUsage());
       const start = performance.now();
-      await pipeRef.current(input, {
-        streamer,
-        max_new_tokens: 512,
-        ...(options || {}),
-        do_sample: true,
-      });
+      const [_, peakMem] = await watchMemoryUsage(() =>
+        pipeRef.current(input, {
+          streamer,
+          max_new_tokens: 512,
+          ...(options || {}),
+          do_sample: true,
+        })
+      );
       const end = performance.now();
-      console.log('memory usage after run:', await getMemoryUsage());
+      console.log('memory usage:', peakMem);
       console.log(`time taken: ${end - start}ms`);
       console.log(
         `tokens: ${tokens}, tokens/s: ${(tokens / (end - start)) * 1000}`
@@ -173,11 +183,14 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
   const runASRFromUrl = useCallback(
     async (audioUrl: string): Promise<ASRResult> => {
       if (!pipeRef.current) throw new Error('Pipeline is not loaded');
+      const audioContext = new AudioContext({
+        sampleRate: 16000,
+      });
       const res = await fetch(audioUrl);
       const buf = await res.arrayBuffer();
-      // Some pipelines may accept compressed input; however, our app uses Float32Array elsewhere.
-      // Keep URL support for backward compatibility.
-      const out = await pipeRef.current(buf);
+      const audioBuffer = await audioContext.decodeAudioData(buf);
+      const pcm = audioBuffer.getChannelData(0);
+      const out = await pipeRef.current(pcm);
       return out as ASRResult;
     },
     []

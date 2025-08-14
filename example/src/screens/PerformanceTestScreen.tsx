@@ -10,7 +10,7 @@ import { InferenceSession as OldInferenceSession } from '@force/onnxruntime-reac
 import type { InferenceSession } from 'onnxruntime-common';
 import { AutoTokenizer, Tensor } from '@huggingface/transformers';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import DeviceInfo from 'react-native-device-info';
+import PerformanceStats from 'react-native-performance-stats';
 import bytes from 'bytes';
 
 const styles = StyleSheet.create({
@@ -70,32 +70,28 @@ type BenchmarkReport = {
   peakMem: number;
 };
 
-const getPeakMemoryUsage = async (
-  prevPeakMemoryUsage: number
-): Promise<number> => {
-  const memoryUsage = await DeviceInfo.getUsedMemory();
-  return Math.max(prevPeakMemoryUsage, memoryUsage);
-};
-
 const benchmark = async (
   fn: () => Promise<void>,
   signal?: AbortSignal
 ): Promise<BenchmarkReport> => {
-  const times = [];
-  let initialMemoryUsage = await DeviceInfo.getUsedMemory();
-  let peakMem = await getPeakMemoryUsage(-1);
-  const interval = setInterval(async () => {
-    peakMem = await getPeakMemoryUsage(peakMem);
-  }, 100);
-  for (let i = 0; i < runCount && !signal?.aborted; i++) {
-    const start = performance.now();
-    await fn();
-    const end = performance.now();
-    times.push(end - start);
+  let peakMem = -1;
+  PerformanceStats.start();
+  const listener = PerformanceStats.addListener((stats) => {
+    peakMem = Math.max(peakMem, stats.usedRam);
+  });
+  try {
+    const times = [];
+    for (let i = 0; i < runCount && !signal?.aborted; i++) {
+      const start = performance.now();
+      await fn();
+      const end = performance.now();
+      times.push(end - start);
+    }
+    return { times, peakMem };
+  } finally {
+    listener.remove();
+    PerformanceStats.stop();
   }
-  clearInterval(interval);
-  peakMem -= initialMemoryUsage;
-  return { times, peakMem };
 };
 
 const calculateResult = (report: BenchmarkReport) => {

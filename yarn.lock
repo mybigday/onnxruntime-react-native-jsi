@@ -10211,7 +10211,7 @@ __metadata:
     react-native: 0.80.2
     react-native-audio-api: ^0.7.0
     react-native-builder-bob: ^0.40.13
-    react-native-device-info: ^14.0.4
+    react-native-performance-stats: ^0.2.3
     react-native-safe-area-context: ^5.6.0
     react-native-screens: ^4.13.1
     text-encoding-polyfill: ^0.6.7
@@ -11059,15 +11059,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-device-info@npm:^14.0.4":
-  version: 14.0.4
-  resolution: "react-native-device-info@npm:14.0.4"
-  peerDependencies:
-    react-native: "*"
-  checksum: aa839dbe7df1246a4b5f9bcfeb3d4cc4be585f13a0d3ff6a03f57a0c2cfe7590291ac292dda4c51fd8765f94c870857676463e8e2f1660b057f3ae2b4335db29
-  languageName: node
-  linkType: hard
-
 "react-native-image-viewing@npm:^0.2.1":
   version: 0.2.2
   resolution: "react-native-image-viewing@npm:0.2.2"
@@ -11107,6 +11098,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: a8672a50bbc60c9d925b8935b484cda2ed976483fce156f31b497d799eb349b24b79934aa683576e606e3fd3d8d97877d0048eba95f702f15ae21263c2658fd5
+  languageName: node
+  linkType: hard
+
+"react-native-performance-stats@npm:^0.2.3":
+  version: 0.2.3
+  resolution: "react-native-performance-stats@npm:0.2.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: dbe2fed4b2e62581abf78e169aaf89a6a786a34d333390c48d3f8aee4250fa6b8a25a7344de9ed3ee6b161c19dade93b1ea7280d5c6abd6a6b5f69926cface9c
   languageName: node
   linkType: hard
 
