@@ -152,10 +152,6 @@ class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
       }
     }
 
-    void onAbort() override {
-      runOptions_.SetTerminate();
-    }
-
     void Execute() override {
       std::vector<const char*> inputNamesCStr(inputNames.size());
       std::vector<const char*> outputNamesCStr(outputNames.size());

@@ -19,15 +19,17 @@ Value AsyncWorker::toPromise(Runtime& runtime) {
     PropNameID::forAscii(runtime, "executor"),
     2,
     [this](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
-      auto resolver = std::make_shared<Resolver>(runtime, arguments);
-      this->resolver_ = resolver;
+      this->weakResolve_ = std::make_shared<WeakObject>(runtime, arguments[0].asObject(runtime));
+      this->weakReject_ = std::make_shared<WeakObject>(runtime, arguments[1].asObject(runtime));
       thread_ = std::thread([this]() {
-        auto& jsInvoker = env_->getJsInvoker();
+        auto jsInvoker = env_->getJsInvoker();
+        if (!jsInvoker) return;
         try {
           Execute();
-          jsInvoker.invokeAsync([this](Runtime& runtime) {
-            if (resolver_) {
-              resolver_->resolve_.call(runtime, OnSuccess(runtime));
+          jsInvoker->invokeAsync([this](Runtime& runtime) {
+            auto resolve = weakResolve_->lock(runtime);
+            if (resolve.isObject()) {
+              resolve.asObject(runtime).asFunction(runtime).call(runtime, OnSuccess(runtime));
             }
             // release self
             auto promise = weakPromise_->lock(runtime);
@@ -37,9 +39,10 @@ Value AsyncWorker::toPromise(Runtime& runtime) {
           });
         } catch (const std::exception& e) {
           error_ = std::string(e.what());
-          jsInvoker.invokeAsync([this](Runtime& runtime) {
-            if (resolver_) {
-              resolver_->reject_.call(runtime, OnError(runtime, error_));
+          jsInvoker->invokeAsync([this](Runtime& runtime) {
+            auto reject = weakReject_->lock(runtime);
+            if (reject.isObject()) {
+              reject.asObject(runtime).asFunction(runtime).call(runtime, OnError(runtime, error_));
             }
             // release self
             auto promise = weakPromise_->lock(runtime);

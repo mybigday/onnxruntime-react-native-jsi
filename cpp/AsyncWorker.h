@@ -18,7 +18,6 @@ public:
 
   facebook::jsi::Value toPromise(facebook::jsi::Runtime& runtime);
 
-  virtual void onAbort() {}
   virtual void Execute() = 0;
   virtual facebook::jsi::Value OnSuccess(facebook::jsi::Runtime& runtime) {
     return facebook::jsi::Value::undefined();
@@ -28,16 +27,9 @@ public:
   }
 
 private:
-  struct Resolver {
-    Resolver(facebook::jsi::Runtime& runtime, const facebook::jsi::Value* arguments):
-      resolve_(arguments[0].asObject(runtime).asFunction(runtime)),
-      reject_(arguments[1].asObject(runtime).asFunction(runtime)) {}
-
-    facebook::jsi::Function resolve_;
-    facebook::jsi::Function reject_;
-  };
   std::shared_ptr<Env> env_;
-  std::shared_ptr<Resolver> resolver_;
+  std::shared_ptr<facebook::jsi::WeakObject> weakResolve_;
+  std::shared_ptr<facebook::jsi::WeakObject> weakReject_;
   std::shared_ptr<facebook::jsi::WeakObject> weakPromise_;
   std::string error_;
   std::thread thread_;

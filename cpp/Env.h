@@ -28,7 +28,7 @@ public:
     tensorConstructor_ = tensorConstructor;
   }
 
-  inline facebook::react::CallInvoker& getJsInvoker() const { return *jsInvoker_; }
+  inline facebook::react::CallInvoker* getJsInvoker() const { return jsInvoker_.get(); }
   inline facebook::jsi::Value getTensorConstructor(facebook::jsi::Runtime& runtime) const {
     return tensorConstructor_->lock(runtime);
   }
