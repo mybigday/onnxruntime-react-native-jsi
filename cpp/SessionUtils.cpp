@@ -1,8 +1,8 @@
 #include "SessionUtils.h"
 #include "JsiUtils.h"
+#include <cpu_provider_factory.h>
 #include <jsi/jsi.h>
 #include <onnxruntime_cxx_api.h>
-#include <cpu_provider_factory.h>
 #ifdef USE_NNAPI
 #include <nnapi_provider_factory.h>
 #endif
@@ -14,17 +14,16 @@ using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
-const std::vector<const char*> supportedBackends = {
-  "cpu",
-  "xnnpack",
+const std::vector<const char *> supportedBackends = {
+    "cpu",    "xnnpack",
 #ifdef USE_COREML
-  "coreml",
+    "coreml",
 #endif
 #ifdef USE_NNAPI
-  "nnapi",
+    "nnapi",
 #endif
 #ifdef USE_QNN
-  "qnn",
+    "qnn",
 #endif
 };
 
@@ -33,26 +32,32 @@ public:
   ExtendedSessionOptions() = default;
 
   void AppendExecutionProvider_CPU(int use_arena) {
-    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CPU(this->p_, use_arena));
+    Ort::ThrowOnError(
+        OrtSessionOptionsAppendExecutionProvider_CPU(this->p_, use_arena));
   }
 
-  void AddFreeDimensionOverrideByName(const char* name, int64_t value) {
-    Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(this->p_, name, value));
+  void AddFreeDimensionOverrideByName(const char *name, int64_t value) {
+    Ort::ThrowOnError(
+        Ort::GetApi().AddFreeDimensionOverrideByName(this->p_, name, value));
   }
 #ifdef USE_NNAPI
   void AppendExecutionProvider_Nnapi(uint32_t nnapi_flags) {
-    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
+    Ort::ThrowOnError(
+        OrtSessionOptionsAppendExecutionProvider_Nnapi(this->p_, nnapi_flags));
   }
 #endif
 #ifdef USE_COREML
   void AppendExecutionProvider_CoreML(int flags) {
-    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(this->p_, flags));
+    Ort::ThrowOnError(
+        OrtSessionOptionsAppendExecutionProvider_CoreML(this->p_, flags));
   }
 #endif
 };
 
-void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::SessionOptions& sessionOptions) {
-  if (!optionsValue.isObject()) return;
+void parseSessionOptions(Runtime &runtime, const Value &optionsValue,
+                         Ort::SessionOptions &sessionOptions) {
+  if (!optionsValue.isObject())
+    return;
 
   auto options = optionsValue.asObject(runtime);
 
@@ -67,7 +72,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // interOpNumThreads
     if (options.hasProperty(runtime, "interOpNumThreads")) {
       auto prop = options.getProperty(runtime, "interOpNumThreads");
@@ -78,21 +83,21 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // freeDimensionOverrides
     if (options.hasProperty(runtime, "freeDimensionOverrides")) {
       auto prop = options.getProperty(runtime, "freeDimensionOverrides");
       if (prop.isObject()) {
         auto overrides = prop.asObject(runtime);
-        forEach(runtime, overrides, [&](const std::string& key, const Value& value, size_t index) {
-          reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AddFreeDimensionOverrideByName(
-            key.c_str(),
-            static_cast<int64_t>(value.asNumber())
-          );
-        });
+        forEach(runtime, overrides,
+                [&](const std::string &key, const Value &value, size_t index) {
+                  reinterpret_cast<ExtendedSessionOptions &>(sessionOptions)
+                      .AddFreeDimensionOverrideByName(
+                          key.c_str(), static_cast<int64_t>(value.asNumber()));
+                });
       }
     }
-    
+
     // graphOptimizationLevel
     if (options.hasProperty(runtime, "graphOptimizationLevel")) {
       auto prop = options.getProperty(runtime, "graphOptimizationLevel");
@@ -109,7 +114,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // enableCpuMemArena
     if (options.hasProperty(runtime, "enableCpuMemArena")) {
       auto prop = options.getProperty(runtime, "enableCpuMemArena");
@@ -121,7 +126,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // enableMemPattern
     if (options.hasProperty(runtime, "enableMemPattern")) {
       auto prop = options.getProperty(runtime, "enableMemPattern");
@@ -133,7 +138,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // executionMode
     if (options.hasProperty(runtime, "executionMode")) {
       auto prop = options.getProperty(runtime, "executionMode");
@@ -146,7 +151,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // optimizedModelFilePath
     if (options.hasProperty(runtime, "optimizedModelFilePath")) {
       auto prop = options.getProperty(runtime, "optimizedModelFilePath");
@@ -155,7 +160,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         sessionOptions.SetOptimizedModelFilePath(path.c_str());
       }
     }
-    
+
     // enableProfiling
     if (options.hasProperty(runtime, "enableProfiling")) {
       auto prop = options.getProperty(runtime, "enableProfiling");
@@ -163,10 +168,11 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         sessionOptions.EnableProfiling("onnxruntime_profile_");
       }
     }
-    
+
     // profileFilePrefix
     if (options.hasProperty(runtime, "profileFilePrefix")) {
-      auto enableProfilingProp = options.getProperty(runtime, "enableProfiling");
+      auto enableProfilingProp =
+          options.getProperty(runtime, "enableProfiling");
       if (enableProfilingProp.isBool() && enableProfilingProp.asBool()) {
         auto prop = options.getProperty(runtime, "profileFilePrefix");
         if (prop.isString()) {
@@ -175,7 +181,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         }
       }
     }
-    
+
     // logId
     if (options.hasProperty(runtime, "logId")) {
       auto prop = options.getProperty(runtime, "logId");
@@ -184,7 +190,7 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         sessionOptions.SetLogId(logId.c_str());
       }
     }
-    
+
     // logSeverityLevel
     if (options.hasProperty(runtime, "logSeverityLevel")) {
       auto prop = options.getProperty(runtime, "logSeverityLevel");
@@ -198,48 +204,59 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
 
     // externalData
     if (options.hasProperty(runtime, "externalData")) {
-      auto prop = options.getProperty(runtime, "externalData").asObject(runtime);
+      auto prop =
+          options.getProperty(runtime, "externalData").asObject(runtime);
       if (prop.isArray(runtime)) {
         auto externalDataArray = prop.asArray(runtime);
         std::vector<std::string> paths;
-        std::vector<char*> buffs;
+        std::vector<char *> buffs;
         std::vector<size_t> sizes;
-        forEach(runtime, externalDataArray, [&](const Value& value, size_t index) {
-          if (value.isObject()) {
-            auto externalDataObject = value.asObject(runtime);
-            if (externalDataObject.hasProperty(runtime, "path")) {
-              auto pathValue = externalDataObject.getProperty(runtime, "path");
-              if (pathValue.isString()) {
-                paths.push_back(pathValue.asString(runtime).utf8(runtime));
+        forEach(
+            runtime, externalDataArray, [&](const Value &value, size_t index) {
+              if (value.isObject()) {
+                auto externalDataObject = value.asObject(runtime);
+                if (externalDataObject.hasProperty(runtime, "path")) {
+                  auto pathValue =
+                      externalDataObject.getProperty(runtime, "path");
+                  if (pathValue.isString()) {
+                    paths.push_back(pathValue.asString(runtime).utf8(runtime));
+                  }
+                }
+                if (externalDataObject.hasProperty(runtime, "data")) {
+                  auto dataValue =
+                      externalDataObject.getProperty(runtime, "data")
+                          .asObject(runtime);
+                  if (isTypedArray(runtime, dataValue)) {
+                    auto arrayBuffer = dataValue.getProperty(runtime, "buffer")
+                                           .asObject(runtime)
+                                           .getArrayBuffer(runtime);
+                    buffs.push_back(
+                        reinterpret_cast<char *>(arrayBuffer.data(runtime)));
+                    sizes.push_back(arrayBuffer.size(runtime));
+                  }
+                }
               }
-            }
-            if (externalDataObject.hasProperty(runtime, "data")) {
-              auto dataValue = externalDataObject.getProperty(runtime, "data").asObject(runtime);
-              if (isTypedArray(runtime, dataValue)) {
-                auto arrayBuffer = dataValue.getProperty(runtime, "buffer").asObject(runtime).getArrayBuffer(runtime);
-                buffs.push_back(reinterpret_cast<char*>(arrayBuffer.data(runtime)));
-                sizes.push_back(arrayBuffer.size(runtime));
-              }
-            }
-          }
-        });
-        sessionOptions.AddExternalInitializersFromFilesInMemory(paths, buffs, sizes);
+            });
+        sessionOptions.AddExternalInitializersFromFilesInMemory(paths, buffs,
+                                                                sizes);
       }
     }
-    
+
     // executionProviders
     if (options.hasProperty(runtime, "executionProviders")) {
       auto prop = options.getProperty(runtime, "executionProviders");
       if (prop.isObject() && prop.asObject(runtime).isArray(runtime)) {
         auto providers = prop.asObject(runtime).asArray(runtime);
-        forEach(runtime, providers, [&](const Value& epValue, size_t index) {
+        forEach(runtime, providers, [&](const Value &epValue, size_t index) {
           std::string epName;
           std::unique_ptr<Object> providerObj;
           if (epValue.isString()) {
             epName = epValue.asString(runtime).utf8(runtime);
           } else if (epValue.isObject()) {
             providerObj = std::make_unique<Object>(epValue.asObject(runtime));
-            epName = providerObj->getProperty(runtime, "name").asString(runtime).utf8(runtime);
+            epName = providerObj->getProperty(runtime, "name")
+                         .asString(runtime)
+                         .utf8(runtime);
           }
 
           // Apply execution providers
@@ -251,20 +268,24 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
                 use_arena = 1;
               }
             }
-            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_CPU(use_arena);
+            reinterpret_cast<ExtendedSessionOptions &>(sessionOptions)
+                .AppendExecutionProvider_CPU(use_arena);
           } else if (epName == "xnnpack") {
             sessionOptions.AppendExecutionProvider("XNNPACK");
           }
 #ifdef USE_COREML
           else if (epName == "coreml") {
             int flags = 0;
-            if (providerObj && providerObj->hasProperty(runtime, "coreMlFlags")) {
-              auto flagsValue = providerObj->getProperty(runtime, "coreMlFlags");
+            if (providerObj &&
+                providerObj->hasProperty(runtime, "coreMlFlags")) {
+              auto flagsValue =
+                  providerObj->getProperty(runtime, "coreMlFlags");
               if (flagsValue.isNumber()) {
                 flags = static_cast<int>(flagsValue.asNumber());
               }
             }
-            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_CoreML(flags);
+            reinterpret_cast<ExtendedSessionOptions &>(sessionOptions)
+                .AppendExecutionProvider_CoreML(flags);
           }
 #endif
 #ifdef USE_NNAPI
@@ -282,8 +303,10 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
                 nnapi_flags |= NNAPI_FLAG_USE_NCHW;
               }
             }
-            if (providerObj && providerObj->hasProperty(runtime, "cpuDisabled")) {
-              auto cpuDisabled = providerObj->getProperty(runtime, "cpuDisabled");
+            if (providerObj &&
+                providerObj->hasProperty(runtime, "cpuDisabled")) {
+              auto cpuDisabled =
+                  providerObj->getProperty(runtime, "cpuDisabled");
               if (cpuDisabled.isBool() && cpuDisabled.asBool()) {
                 nnapi_flags |= NNAPI_FLAG_CPU_DISABLED;
               }
@@ -294,21 +317,33 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
                 nnapi_flags |= NNAPI_FLAG_CPU_ONLY;
               }
             }
-            reinterpret_cast<ExtendedSessionOptions&>(sessionOptions).AppendExecutionProvider_Nnapi(nnapi_flags);
+            reinterpret_cast<ExtendedSessionOptions &>(sessionOptions)
+                .AppendExecutionProvider_Nnapi(nnapi_flags);
           }
 #endif
 #ifdef USE_QNN
           else if (epName == "qnn") {
             std::unordered_map<std::string, std::string> options;
-            if (providerObj && providerObj->hasProperty(runtime, "backendType")) {
-              options["backendType"] = providerObj->getProperty(runtime, "backendType").asString(runtime).utf8(runtime);
+            if (providerObj &&
+                providerObj->hasProperty(runtime, "backendType")) {
+              options["backendType"] =
+                  providerObj->getProperty(runtime, "backendType")
+                      .asString(runtime)
+                      .utf8(runtime);
             }
-            if (providerObj && providerObj->hasProperty(runtime, "backendPath")) {
-              options["backendPath"] = providerObj->getProperty(runtime, "backendPath").asString(runtime).utf8(runtime);
+            if (providerObj &&
+                providerObj->hasProperty(runtime, "backendPath")) {
+              options["backendPath"] =
+                  providerObj->getProperty(runtime, "backendPath")
+                      .asString(runtime)
+                      .utf8(runtime);
             }
-            if (providerObj && providerObj->hasProperty(runtime, "enableFp16Precision")) {
-              auto enableFp16Precision = providerObj->getProperty(runtime, "enableFp16Precision");
-              if (enableFp16Precision.isBool() && enableFp16Precision.asBool()) {
+            if (providerObj &&
+                providerObj->hasProperty(runtime, "enableFp16Precision")) {
+              auto enableFp16Precision =
+                  providerObj->getProperty(runtime, "enableFp16Precision");
+              if (enableFp16Precision.isBool() &&
+                  enableFp16Precision.asBool()) {
                 options["enableFp16Precision"] = "1";
               } else {
                 options["enableFp16Precision"] = "0";
@@ -323,18 +358,21 @@ void parseSessionOptions(Runtime& runtime, const Value& optionsValue, Ort::Sessi
         });
       }
     }
-  } catch (const JSError& e) {
+  } catch (const JSError &e) {
     throw e;
-  } catch (const std::exception& e) {
-    throw JSError(runtime, "Failed to parse session options: " + std::string(e.what()));
+  } catch (const std::exception &e) {
+    throw JSError(runtime,
+                  "Failed to parse session options: " + std::string(e.what()));
   }
 }
 
-void parseRunOptions(Runtime& runtime, const Value& optionsValue, Ort::RunOptions& runOptions) {
-  if (!optionsValue.isObject()) return;
-  
+void parseRunOptions(Runtime &runtime, const Value &optionsValue,
+                     Ort::RunOptions &runOptions) {
+  if (!optionsValue.isObject())
+    return;
+
   auto options = optionsValue.asObject(runtime);
-  
+
   try {
     // tag
     if (options.hasProperty(runtime, "tag")) {
@@ -344,7 +382,7 @@ void parseRunOptions(Runtime& runtime, const Value& optionsValue, Ort::RunOption
         runOptions.SetRunTag(tag.c_str());
       }
     }
-    
+
     // logSeverityLevel
     if (options.hasProperty(runtime, "logSeverityLevel")) {
       auto prop = options.getProperty(runtime, "logSeverityLevel");
@@ -355,7 +393,7 @@ void parseRunOptions(Runtime& runtime, const Value& optionsValue, Ort::RunOption
         }
       }
     }
-    
+
     // logVerbosityLevel
     if (options.hasProperty(runtime, "logVerbosityLevel")) {
       auto prop = options.getProperty(runtime, "logVerbosityLevel");
@@ -366,7 +404,7 @@ void parseRunOptions(Runtime& runtime, const Value& optionsValue, Ort::RunOption
         }
       }
     }
-    
+
     // terminate
     if (options.hasProperty(runtime, "terminate")) {
       auto prop = options.getProperty(runtime, "terminate");
@@ -374,11 +412,11 @@ void parseRunOptions(Runtime& runtime, const Value& optionsValue, Ort::RunOption
         runOptions.SetTerminate();
       }
     }
-    
-  } catch (const std::exception& e) {
-    throw JSError(runtime, "Failed to parse run options: " + std::string(e.what()));
+
+  } catch (const std::exception &e) {
+    throw JSError(runtime,
+                  "Failed to parse run options: " + std::string(e.what()));
   }
 }
-
 
 } // namespace onnxruntimereactnativejsi

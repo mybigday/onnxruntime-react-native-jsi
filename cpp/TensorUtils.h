@@ -9,19 +9,18 @@ namespace onnxruntimereactnativejsi {
 
 class TensorUtils {
 public:
-  static Ort::Value createOrtValueFromJSTensor(
-    facebook::jsi::Runtime& runtime,
-    const facebook::jsi::Object& tensorObj,
-    const Ort::MemoryInfo& memoryInfo
-  );
-  
-  static facebook::jsi::Object createJSTensorFromOrtValue(
-    facebook::jsi::Runtime& runtime, 
-    Ort::Value& ortValue,
-    const facebook::jsi::Object& tensorConstructor
-  );
-  
-  static bool isTensor(facebook::jsi::Runtime& runtime, const facebook::jsi::Object& obj);
+  static Ort::Value
+  createOrtValueFromJSTensor(facebook::jsi::Runtime &runtime,
+                             const facebook::jsi::Object &tensorObj,
+                             const Ort::MemoryInfo &memoryInfo);
+
+  static facebook::jsi::Object
+  createJSTensorFromOrtValue(facebook::jsi::Runtime &runtime,
+                             Ort::Value &ortValue,
+                             const facebook::jsi::Object &tensorConstructor);
+
+  static bool isTensor(facebook::jsi::Runtime &runtime,
+                       const facebook::jsi::Object &obj);
 };
 
 } // namespace onnxruntimereactnativejsi

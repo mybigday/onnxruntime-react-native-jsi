@@ -1,13 +1,13 @@
 #pragma once
 
-#include <jsi/jsi.h>
-#include <string>
-#include <memory>
-#include <thread>
-#include <atomic>
-#include <vector>
 #include "Env.h"
 #include "log.h"
+#include <atomic>
+#include <jsi/jsi.h>
+#include <memory>
+#include <string>
+#include <thread>
+#include <vector>
 
 using namespace facebook::jsi;
 
@@ -15,7 +15,7 @@ namespace onnxruntimereactnativejsi {
 
 class AsyncWorker : public std::enable_shared_from_this<AsyncWorker> {
 public:
-  AsyncWorker(Runtime& rt, std::shared_ptr<Env> env) : env_(env) {}
+  AsyncWorker(Runtime &rt, std::shared_ptr<Env> env) : env_(env) {}
 
   ~AsyncWorker() {
     if (worker_.joinable()) {
@@ -27,58 +27,54 @@ public:
     }
   }
 
-  void keepValue(Runtime& rt, const Value& value) {
+  void keepValue(Runtime &rt, const Value &value) {
     keptValues_.push_back(std::make_shared<Value>(rt, value));
   }
 
-  Value toPromise(Runtime& rt) {
+  Value toPromise(Runtime &rt) {
     auto promiseCtor = rt.global().getPropertyAsFunction(rt, "Promise");
     auto self = shared_from_this();
 
     return promiseCtor.callAsConstructor(
-      rt,
-      Function::createFromHostFunction(
-        rt,
-        PropNameID::forAscii(rt, "executor"),
-        2,
-        [self](Runtime& rt, const Value& thisVal, const Value* args, size_t count) -> Value {
-          self->resolveFunc_ = std::make_shared<Value>(rt, args[0]);
-          self->rejectFunc_ = std::make_shared<Value>(rt, args[1]);
-          self->worker_ = std::thread([self]() {
-            try {
-              self->execute();
-              self->dispatchResolve();
-            } catch (const std::exception& e) {
-              self->dispatchReject(e.what());
-            }
-          });
-          return Value::undefined();
-        }
-      )
-    );
+        rt, Function::createFromHostFunction(
+                rt, PropNameID::forAscii(rt, "executor"), 2,
+                [self](Runtime &rt, const Value &thisVal, const Value *args,
+                       size_t count) -> Value {
+                  self->resolveFunc_ = std::make_shared<Value>(rt, args[0]);
+                  self->rejectFunc_ = std::make_shared<Value>(rt, args[1]);
+                  self->worker_ = std::thread([self]() {
+                    try {
+                      self->execute();
+                      self->dispatchResolve();
+                    } catch (const std::exception &e) {
+                      self->dispatchReject(e.what());
+                    }
+                  });
+                  return Value::undefined();
+                }));
   }
 
 protected:
   virtual void execute() = 0;
 
-  virtual Value onResolve(Runtime& rt) = 0;
-  virtual Value onReject(Runtime& rt, const std::string& err) {
+  virtual Value onResolve(Runtime &rt) = 0;
+  virtual Value onReject(Runtime &rt, const std::string &err) {
     return String::createFromUtf8(rt, err);
   }
 
 private:
   void dispatchResolve() {
     auto self = shared_from_this();
-    env_->getJsInvoker()->invokeAsync([self](Runtime& rt) {
+    env_->getJsInvoker()->invokeAsync([self](Runtime &rt) {
       auto resVal = self->onResolve(rt);
       self->resolveFunc_->asObject(rt).asFunction(rt).call(rt, resVal);
       self->clearKeeps();
     });
   }
 
-  void dispatchReject(const std::string& err) {
+  void dispatchReject(const std::string &err) {
     auto self = shared_from_this();
-    env_->getJsInvoker()->invokeAsync([self, err](Runtime& rt) {
+    env_->getJsInvoker()->invokeAsync([self, err](Runtime &rt) {
       auto resVal = self->onReject(rt, err);
       self->rejectFunc_->asObject(rt).asFunction(rt).call(rt, resVal);
       self->clearKeeps();
