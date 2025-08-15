@@ -9,6 +9,7 @@ import React, {
 import { pipeline, TextStreamer } from '@huggingface/transformers';
 import PerformanceStats from 'react-native-performance-stats';
 import { AudioContext } from 'react-native-audio-api';
+import bytes from 'bytes';
 
 export type AITask =
   | 'text-generation'
@@ -76,11 +77,13 @@ const defaultModels: Record<AITask, string> = {
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
 
+const MB = 1024 * 1024;
+
 async function watchMemoryUsage<T>(fn: () => Promise<T>): Promise<[T, number]> {
   let peakMem = -1;
   PerformanceStats.start();
   const listener = PerformanceStats.addListener((stats) => {
-    peakMem = Math.max(peakMem, stats.usedRam);
+    peakMem = Math.max(peakMem, stats.usedRam * MB);
   });
   try {
     return [await fn(), peakMem];
@@ -116,7 +119,7 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
         pipeline(task as any, modelId, opts as any)
       );
       pipeRef.current = pipe;
-      console.log('memory usage after load:', peakMem);
+      console.log('memory usage after load:', bytes.format(peakMem));
       setIsLoaded(true);
     } catch (e) {
       setError(e);
@@ -170,7 +173,7 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
       const end = performance.now();
-      console.log('memory usage:', peakMem);
+      console.log('memory usage:', bytes.format(peakMem));
       console.log(`time taken: ${end - start}ms`);
       console.log(
         `tokens: ${tokens}, tokens/s: ${(tokens / (end - start)) * 1000}`

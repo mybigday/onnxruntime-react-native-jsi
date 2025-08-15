@@ -1,8 +1,8 @@
 #include "InferenceSessionHostObject.h"
 #include "TensorUtils.h"
 #include "JsiUtils.h"
-#include "AsyncWorker.h"
 #include "SessionUtils.h"
+#include "AsyncWorker.h"
 
 using namespace facebook::jsi;
 
@@ -53,149 +53,168 @@ Value InferenceSessionHostObject::get(Runtime& runtime, const PropNameID& name) 
 }
 
 void InferenceSessionHostObject::set(Runtime& runtime, const PropNameID& name, const Value& value) {
-  throw JSError(runtime, "InferenceSession properties are read-only");
+  auto propName = name.utf8(runtime);
+  auto setter = setters_.find(propName);
+  if (setter != setters_.end()) {
+    setter->second(runtime, value);
+  }
 }
 
 class InferenceSessionHostObject::LoadModelAsyncWorker : public AsyncWorker {
-  public:
-    LoadModelAsyncWorker(
-      Runtime& runtime,
-      const Value* arguments, size_t count,
-      std::shared_ptr<InferenceSessionHostObject> session
-    ) : AsyncWorker(session->env_),
-        session_(session) {
-      if (count < 1) throw JSError(runtime, "loadModel requires at least 1 argument");
-      if (arguments[0].isString()) {
-        modelPath_ = arguments[0].asString(runtime).utf8(runtime);
-        if (modelPath_.find("file://") == 0) {
-          modelPath_ = modelPath_.substr(7);
-        }
-      } else if (arguments[0].isObject() && arguments[0].asObject(runtime).isArrayBuffer(runtime)) {
-        auto arrayBuffer = arguments[0].asObject(runtime).getArrayBuffer(runtime);
-        modelData_ = arrayBuffer.data(runtime);
-        modelDataLength_ = arrayBuffer.size(runtime);
-      } else {
-        throw JSError(runtime, "Model path or buffer is required");
+public:
+  LoadModelAsyncWorker(
+    Runtime& runtime,
+    const Value* arguments,
+    size_t count,
+    std::shared_ptr<InferenceSessionHostObject> session
+  ) : AsyncWorker(runtime, session->env_), session_(session) {
+    if (count < 1) throw JSError(runtime, "loadModel requires at least 1 argument");
+    if (arguments[0].isString()) {
+      modelPath_ = arguments[0].asString(runtime).utf8(runtime);
+      if (modelPath_.find("file://") == 0) {
+        modelPath_ = modelPath_.substr(7);
       }
-      if (count > 1) {
-        parseSessionOptions(runtime, arguments[1], sessionOptions_);
-      }
+    } else if (arguments[0].isObject() && arguments[0].asObject(runtime).isArrayBuffer(runtime)) {
+      auto arrayBufferObj = arguments[0].asObject(runtime);
+      auto arrayBuffer = arrayBufferObj.getArrayBuffer(runtime);
+      modelData_ = arrayBuffer.data(runtime);
+      modelDataLength_ = arrayBuffer.size(runtime);
+    } else {
+      throw JSError(runtime, "Model path or buffer is required");
     }
-
-    void Execute() override {
-      if (modelPath_.empty()) {
-        session_->session_ = std::make_unique<Ort::Session>(session_->env_->getOrtEnv(), modelData_, modelDataLength_, sessionOptions_);
-      } else {
-        session_->session_ = std::make_unique<Ort::Session>(session_->env_->getOrtEnv(), modelPath_.c_str(), sessionOptions_);
-      }
+    keepValue(runtime, arguments[0]);
+    if (count > 1) {
+      parseSessionOptions(runtime, arguments[1], sessionOptions_);
     }
+  }
 
-  private:
-    std::string modelPath_;
-    void* modelData_;
-    size_t modelDataLength_;
-    std::shared_ptr<InferenceSessionHostObject> session_;
-    Ort::SessionOptions sessionOptions_;
+protected:
+  void execute() {
+    if (modelPath_.empty()) {
+      session_->session_ = std::make_unique<Ort::Session>(
+        session_->env_->getOrtEnv(),
+        modelData_,
+        modelDataLength_,
+        sessionOptions_
+      );
+    } else {
+      session_->session_ = std::make_unique<Ort::Session>(
+        session_->env_->getOrtEnv(),
+        modelPath_.c_str(),
+        sessionOptions_
+      );
+    }
+  }
+
+  Value onResolve(Runtime& rt) {
+    return Value::undefined();
+  }
+
+private:
+  std::string error_;
+  std::string modelPath_;
+  void* modelData_;
+  size_t modelDataLength_;
+  std::shared_ptr<InferenceSessionHostObject> session_;
+  Ort::SessionOptions sessionOptions_;
+  std::shared_ptr<WeakObject> weakResolve_;
+  std::shared_ptr<WeakObject> weakReject_;
+  std::thread thread_;
 };
 
 DEFINE_METHOD(InferenceSessionHostObject::loadModel) {
-  auto worker = std::make_shared<LoadModelAsyncWorker>(runtime, arguments, count, shared_from_this());
+  auto self = shared_from_this();
+  auto worker = std::make_shared<LoadModelAsyncWorker>(runtime, arguments, count, self);
   return worker->toPromise(runtime);
 }
 
 class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
-  public:
-    RunAsyncWorker(
-      Runtime& runtime,
-      const Value* arguments, size_t count,
-      std::shared_ptr<InferenceSessionHostObject> session
-    ) : AsyncWorker(session->env_),
-        session_(session) {
-      if (count < 1 || !arguments[0].isObject()) {
-        throw JSError(runtime, "run requires feeds object as first argument");
+public:
+  RunAsyncWorker(
+    Runtime& runtime,
+    const Value* arguments,
+    size_t count,
+    std::shared_ptr<InferenceSessionHostObject> session
+  ) : AsyncWorker(runtime, session->env_), session_(session), memoryInfo_(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault)) {
+    if (count < 1) throw JSError(runtime, "run requires at least 1 argument");
+    if (count > 2 && !arguments[2].isUndefined()) {
+      parseRunOptions(runtime, arguments[2], runOptions_);
+    }
+    forEach(runtime, arguments[0].asObject(runtime), [&](const std::string& key, const Value& value, size_t index) {
+      inputNames_.push_back(key);
+      inputValues_.push_back(TensorUtils::createOrtValueFromJSTensor(runtime, value.asObject(runtime), memoryInfo_));
+      keepValue(runtime, value);
+    });
+    forEach(runtime, arguments[1].asObject(runtime), [&](const std::string& key, const Value& value, size_t index) {
+      outputNames_.push_back(key);
+      if (value.isObject() && TensorUtils::isTensor(runtime, value.asObject(runtime))) {
+        outputValues_.push_back(TensorUtils::createOrtValueFromJSTensor(runtime, value.asObject(runtime), memoryInfo_));
+        jsOutputValues_.push_back(std::make_shared<WeakObject>(runtime, value.asObject(runtime)));
+        keepValue(runtime, value);
+      } else {
+        outputValues_.push_back(Ort::Value());
+        jsOutputValues_.push_back(nullptr);
       }
-      if (count > 2 && !arguments[2].isUndefined()) {
-        parseRunOptions(runtime, arguments[2], runOptions_);
-      }
-      Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
-      { // feedObject
-        auto feedObject = arguments[0].asObject(runtime);
-        forEach(runtime, feedObject, [&](const std::string& key, const Value& value, size_t index) {
-          inputNames.push_back(key);
-          inputValues.push_back(
-            TensorUtils::createOrtValueFromJSTensor(
-              runtime,
-              value.asObject(runtime),
-              memoryInfo
-            )
-          );
-        });
-      }
-      { // outputObject
-        auto outputObject = arguments[1].asObject(runtime);
-        auto size = outputObject.getPropertyNames(runtime).size(runtime);
-        outputValues.resize(size);
-        jsOutputValues.resize(size);
-        forEach(runtime, outputObject, [&](const std::string& key, const Value& value, size_t index) {
-          outputNames.push_back(key);
-          if (value.isObject() && TensorUtils::isTensor(runtime, value.asObject(runtime))) {
-            outputValues[index] = (
-              TensorUtils::createOrtValueFromJSTensor(
-                runtime,
-                value.asObject(runtime),
-                memoryInfo
-              )
-            );
-            jsOutputValues[index] = std::make_unique<WeakObject>(runtime, value.asObject(runtime));
-          }
-        });
+    });
+  }
+
+protected:
+  void execute() {
+    auto inputNames = std::vector<const char*>(inputNames_.size());
+    std::transform(inputNames_.begin(), inputNames_.end(), inputNames.begin(), [](const std::string& name) { return name.c_str(); });
+    auto outputNames = std::vector<const char*>(outputNames_.size());
+    std::transform(outputNames_.begin(), outputNames_.end(), outputNames.begin(), [](const std::string& name) { return name.c_str(); });
+    session_->session_->Run(
+      runOptions_,
+      inputNames.data(),
+      inputValues_.data(),
+      inputValues_.size(),
+      outputNames.data(),
+      outputValues_.data(),
+      outputValues_.size()
+    );
+  }
+
+  Value onResolve(Runtime& rt) {
+    auto resultObject = Object(rt);
+    auto tensorConstructor = session_->env_->getTensorConstructor(rt).asObject(rt);
+    for (size_t i = 0; i < outputValues_.size(); ++i) {
+      if (jsOutputValues_[i] != nullptr && outputValues_[i].IsTensor()) {
+        resultObject.setProperty(
+          rt,
+          outputNames_[i].c_str(),
+          jsOutputValues_[i]->lock(rt)
+        );
+      } else {
+        auto tensorObj = TensorUtils::createJSTensorFromOrtValue(
+          rt,
+          outputValues_[i],
+          tensorConstructor
+        );
+        resultObject.setProperty(
+          rt,
+          outputNames_[i].c_str(),
+          Value(rt, tensorObj)
+        );
       }
     }
+    return Value(rt, resultObject);
+  }
 
-    void OnAbort() override {
-      runOptions_.SetTerminate();
-    }
-
-    void Execute() override {
-      std::vector<const char*> inputNamesCStr(inputNames.size());
-      std::vector<const char*> outputNamesCStr(outputNames.size());
-      std::transform(inputNames.begin(), inputNames.end(), inputNamesCStr.begin(), [](const std::string& name) { return name.c_str(); });
-      std::transform(outputNames.begin(), outputNames.end(), outputNamesCStr.begin(), [](const std::string& name) { return name.c_str(); });
-      session_->session_->Run(runOptions_,
-                              inputNames.empty() ? nullptr : inputNamesCStr.data(),
-                              inputValues.empty() ? nullptr : inputValues.data(),
-                              inputValues.size(),
-                              outputNames.empty() ? nullptr : outputNamesCStr.data(),
-                              outputNames.empty() ? nullptr : outputValues.data(),
-                              outputNames.size());
-    }
-
-    Value OnSuccess(Runtime& runtime) override {
-      auto resultObject = Object(runtime);
-      auto tensorConstructor = session_->env_->getTensorConstructor(runtime).asObject(runtime);
-      for (size_t i = 0; i < outputValues.size(); ++i) {
-        if (jsOutputValues[i] && outputValues[i].IsTensor()) {
-          resultObject.setProperty(runtime, outputNames[i].c_str(), jsOutputValues[i]->lock(runtime));
-        } else {
-          auto tensorObj = TensorUtils::createJSTensorFromOrtValue(runtime, outputValues[i], tensorConstructor);
-          resultObject.setProperty(runtime, outputNames[i].c_str(), Value(runtime, tensorObj));
-        }
-      }
-      return Value(runtime, resultObject);
-    }
-
-  private:
-    std::shared_ptr<InferenceSessionHostObject> session_;
-    Ort::RunOptions runOptions_;
-    std::vector<std::string> inputNames;
-    std::vector<Ort::Value> inputValues;
-    std::vector<std::string> outputNames;
-    std::vector<Ort::Value> outputValues;
-    std::vector<std::unique_ptr<WeakObject>> jsOutputValues;
+private:
+  Ort::MemoryInfo memoryInfo_;
+  std::shared_ptr<InferenceSessionHostObject> session_;
+  Ort::RunOptions runOptions_;
+  std::vector<std::string> inputNames_;
+  std::vector<Ort::Value> inputValues_;
+  std::vector<std::string> outputNames_;
+  std::vector<Ort::Value> outputValues_;
+  std::vector<std::shared_ptr<WeakObject>> jsOutputValues_;
 };
 
 DEFINE_METHOD(InferenceSessionHostObject::run) {
-  auto worker = std::make_shared<RunAsyncWorker>(runtime, arguments, count, shared_from_this());
+  auto self = shared_from_this();
+  auto worker = std::make_shared<RunAsyncWorker>(runtime, arguments, count, self);
   return worker->toPromise(runtime);
 }
 

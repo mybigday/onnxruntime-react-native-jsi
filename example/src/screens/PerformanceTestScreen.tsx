@@ -70,6 +70,8 @@ type BenchmarkReport = {
   peakMem: number;
 };
 
+const MB = 1024 * 1024;
+
 const benchmark = async (
   fn: () => Promise<void>,
   signal?: AbortSignal
@@ -77,7 +79,7 @@ const benchmark = async (
   let peakMem = -1;
   PerformanceStats.start();
   const listener = PerformanceStats.addListener((stats) => {
-    peakMem = Math.max(peakMem, stats.usedRam);
+    peakMem = Math.max(peakMem, stats.usedRam * MB);
   });
   try {
     const times = [];

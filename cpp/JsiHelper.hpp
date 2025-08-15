@@ -10,7 +10,7 @@
 
 #define BIND_GETTER(method) std::bind(&method, std::placeholders::_1)
 
-#define BIND_SETTER(method) std::bind(&method, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+#define BIND_SETTER(method) std::bind(&method, std::placeholders::_1, std::placeholders::_2)
 
 #define BIND_THIS_METHOD(cls, name) std::bind(&cls::name##_method, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)
 
@@ -26,8 +26,11 @@
 
 #define DEFINE_GETTER(name) Value name##_get(Runtime& runtime)
 
+#define DEFINE_SETTER(name) void name##_set(Runtime& runtime, const Value& value)
+
 typedef std::function<facebook::jsi::Value(facebook::jsi::Runtime& runtime, const facebook::jsi::Value& thisValue, const facebook::jsi::Value* arguments, size_t count)> JsiMethod;
 typedef std::function<facebook::jsi::Value(facebook::jsi::Runtime& runtime)> JsiGetter;
+typedef std::function<void(facebook::jsi::Runtime& runtime, const facebook::jsi::Value& value)> JsiSetter;
 
 struct JsiMethodInfo {
   JsiMethod method;
@@ -36,3 +39,4 @@ struct JsiMethodInfo {
 
 typedef std::unordered_map<std::string, JsiMethodInfo> JsiMethodMap;
 typedef std::unordered_map<std::string, JsiGetter> JsiGetterMap;
+typedef std::unordered_map<std::string, JsiSetter> JsiSetterMap;

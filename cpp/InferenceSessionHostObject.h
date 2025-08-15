@@ -31,7 +31,7 @@ public:
 
 private:
   std::shared_ptr<Env> env_;
-  std::unique_ptr<Ort::Session> session_;
+  std::shared_ptr<Ort::Session> session_;
 
   class LoadModelAsyncWorker;
   class RunAsyncWorker;
@@ -46,6 +46,7 @@ private:
 
   JsiMethodMap methods_;
   JsiGetterMap getters_;
+  JsiSetterMap setters_;
 };
 
 } // namespace onnxruntimereactnativejsi

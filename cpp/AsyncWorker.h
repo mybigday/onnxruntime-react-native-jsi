@@ -5,37 +5,97 @@
 #include <memory>
 #include <thread>
 #include <atomic>
+#include <vector>
 #include "Env.h"
+#include "log.h"
 
 using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
-class AsyncWorker: public HostObject, public std::enable_shared_from_this<AsyncWorker> {
+class AsyncWorker : public std::enable_shared_from_this<AsyncWorker> {
 public:
-  AsyncWorker(std::shared_ptr<Env> env): env_(env), aborted_(false) {}
+  AsyncWorker(Runtime& rt, std::shared_ptr<Env> env) : env_(env) {}
 
-  ~AsyncWorker();
-
-  facebook::jsi::Value toPromise(facebook::jsi::Runtime& runtime);
-
-  virtual void OnAbort() {}
-  virtual void Execute() = 0;
-  virtual facebook::jsi::Value OnSuccess(facebook::jsi::Runtime& runtime) {
-    return facebook::jsi::Value::undefined();
+  ~AsyncWorker() {
+    if (worker_.joinable()) {
+      if (worker_.get_id() == std::this_thread::get_id()) {
+        worker_.detach();
+      } else {
+        worker_.join();
+      }
+    }
   }
-  virtual facebook::jsi::Value OnError(facebook::jsi::Runtime& runtime, const std::string& message) {
-    return facebook::jsi::Value(runtime, facebook::jsi::String::createFromUtf8(runtime, message));
+
+  void keepValue(Runtime& rt, const Value& value) {
+    keptValues_.push_back(std::make_shared<Value>(rt, value));
+  }
+
+  Value toPromise(Runtime& rt) {
+    auto promiseCtor = rt.global().getPropertyAsFunction(rt, "Promise");
+    auto self = shared_from_this();
+
+    return promiseCtor.callAsConstructor(
+      rt,
+      Function::createFromHostFunction(
+        rt,
+        PropNameID::forAscii(rt, "executor"),
+        2,
+        [self](Runtime& rt, const Value& thisVal, const Value* args, size_t count) -> Value {
+          self->resolveFunc_ = std::make_shared<Value>(rt, args[0]);
+          self->rejectFunc_ = std::make_shared<Value>(rt, args[1]);
+          self->worker_ = std::thread([self]() {
+            try {
+              self->execute();
+              self->dispatchResolve();
+            } catch (const std::exception& e) {
+              self->dispatchReject(e.what());
+            }
+          });
+          return Value::undefined();
+        }
+      )
+    );
+  }
+
+protected:
+  virtual void execute() = 0;
+
+  virtual Value onResolve(Runtime& rt) = 0;
+  virtual Value onReject(Runtime& rt, const std::string& err) {
+    return String::createFromUtf8(rt, err);
   }
 
 private:
+  void dispatchResolve() {
+    auto self = shared_from_this();
+    env_->getJsInvoker()->invokeAsync([self](Runtime& rt) {
+      auto resVal = self->onResolve(rt);
+      self->resolveFunc_->asObject(rt).asFunction(rt).call(rt, resVal);
+      self->clearKeeps();
+    });
+  }
+
+  void dispatchReject(const std::string& err) {
+    auto self = shared_from_this();
+    env_->getJsInvoker()->invokeAsync([self, err](Runtime& rt) {
+      auto resVal = self->onReject(rt, err);
+      self->rejectFunc_->asObject(rt).asFunction(rt).call(rt, resVal);
+      self->clearKeeps();
+    });
+  }
+
+  void clearKeeps() {
+    keptValues_.clear();
+    resolveFunc_.reset();
+    rejectFunc_.reset();
+  }
+
   std::shared_ptr<Env> env_;
-  std::shared_ptr<facebook::jsi::WeakObject> weakResolve_;
-  std::shared_ptr<facebook::jsi::WeakObject> weakReject_;
-  std::shared_ptr<facebook::jsi::WeakObject> weakPromise_;
-  std::string error_;
-  std::thread thread_;
-  std::atomic<bool> aborted_;
+  std::vector<std::shared_ptr<Value>> keptValues_;
+  std::shared_ptr<Value> resolveFunc_;
+  std::shared_ptr<Value> rejectFunc_;
+  std::thread worker_;
 };
 
 } // namespace onnxruntimereactnativejsi

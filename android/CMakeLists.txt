@@ -26,7 +26,6 @@ add_library(onnxruntime-react-native-jsi SHARED
     ../cpp/TensorUtils.cpp
     ../cpp/JsiUtils.cpp
     ../cpp/SessionUtils.cpp
-    ../cpp/AsyncWorker.cpp
     cpp-adapter.cpp
 )
 
