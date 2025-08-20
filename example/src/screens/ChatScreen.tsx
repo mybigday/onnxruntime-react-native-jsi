@@ -7,7 +7,7 @@ import type { ChatMessage } from '../context/AIContext';
 
 const convertFromLibraryMessage = (msg: MessageType.Text): ChatMessage => ({
   role: msg.author.id === 'user' ? 'user' : 'assistant',
-  content: msg.text,
+  content: msg.text.replace(/^<think>.*<\/think>/g, '').trim(),
 });
 
 const user = { id: 'user' };
