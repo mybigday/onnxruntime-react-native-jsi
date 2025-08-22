@@ -1,6 +1,6 @@
 {
   "name": "onnxruntime-react-native-jsi",
-  "version": "1.22.0-alpha.1",
+  "version": "1.22.0-alpha.2",
   "description": "Experimental integration for onnxruntime via React Native JSI",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
