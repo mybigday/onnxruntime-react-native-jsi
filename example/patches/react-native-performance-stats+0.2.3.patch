@@ -14,7 +14,7 @@ index 621ef85..2491e48 100644
              // Collect system resource usage
              double cpuUsage = 0;
 diff --git a/node_modules/react-native-performance-stats/react-native-performance-stats.podspec b/node_modules/react-native-performance-stats/react-native-performance-stats.podspec
-index 82dd7fe..232312b 100644
+index 82dd7fe..f547c47 100644
 --- a/node_modules/react-native-performance-stats/react-native-performance-stats.podspec
 +++ b/node_modules/react-native-performance-stats/react-native-performance-stats.podspec
 @@ -2,7 +2,6 @@ require "json"
@@ -25,7 +25,20 @@ index 82dd7fe..232312b 100644
  folly_compiler_flags = '-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -Wno-comma -Wno-shorten-64-to-32'
  
  Pod::Spec.new do |s|
-@@ -29,7 +28,7 @@ Pod::Spec.new do |s|
+@@ -21,7 +20,11 @@ Pod::Spec.new do |s|
+   s.dependency "React-Core"
+ 
+   # This guard prevent to install the dependencies when we run `pod install` in the old architecture.
+-  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
++  if respond_to?(:install_modules_dependencies, true)
++    install_modules_dependencies(s)
++  else
++    s.dependency "React-Core"
++    if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+         s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+         s.pod_target_xcconfig    = {
+             "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+@@ -29,9 +32,10 @@ Pod::Spec.new do |s|
          }
  
          s.dependency "React-Codegen"
@@ -34,3 +47,6 @@ index 82dd7fe..232312b 100644
          s.dependency "RCTRequired"
          s.dependency "RCTTypeSafety"
          s.dependency "ReactCommon/turbomodule/core"
+     end
++  end
+ end

@@ -12,7 +12,7 @@ PODS:
   - onnxruntime-react-native (1.22.0):
     - onnxruntime-c
     - React-Core
-  - onnxruntime-react-native-jsi (1.22.0):
+  - onnxruntime-react-native-jsi (1.22.0-alpha.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -81,7 +81,6 @@ PODS:
     - React-RCTText (= 0.80.2)
     - React-RCTVibration (= 0.80.2)
   - React-callinvoker (0.80.2)
-  - React-Codegen (0.1.0)
   - React-Core (0.80.2):
     - boost
     - DoubleConversion
@@ -1713,12 +1712,34 @@ PODS:
     - SocketRocket
     - Yoga
   - react-native-performance-stats (0.2.3):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
     - RCT-Folly
+    - RCT-Folly/Fabric
     - RCTRequired
     - RCTTypeSafety
-    - React-Codegen
     - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - react-native-safe-area-context (5.6.0):
     - boost
     - DoubleConversion
@@ -2552,7 +2573,6 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - onnxruntime-c
-    - React-Codegen
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -2728,14 +2748,13 @@ SPEC CHECKSUMS:
   hermes-engine: bbc1152da7d2d40f9e59c28acc6576fcf5d28e2a
   onnxruntime-c: 7f778680e96145956c0a31945f260321eed2611a
   onnxruntime-react-native: fc8c8349f1cc9bf6123f5e4f91cdc270a75f1e81
-  onnxruntime-react-native-jsi: ed7c8294c97a3675cea495d3df0b4bf873b34a86
+  onnxruntime-react-native-jsi: 4e1c561c82bcd0e1594f9f4fefb06b694a6d0a49
   RCT-Folly: 59ec0ac1f2f39672a0c6e6cecdd39383b764646f
   RCTDeprecation: 300c5eb91114d4339b0bb39505d0f4824d7299b7
   RCTRequired: e0446b01093475b7082fbeee5d1ef4ad1fe20ac4
   RCTTypeSafety: cb974efcdc6695deedf7bf1eb942f2a0603a063f
   React: e7a4655b09d0e17e54be188cc34c2f3e2087318a
   React-callinvoker: 62192daaa2f30c3321fc531e4f776f7b09cf892b
-  React-Codegen: 4b8b4817cea7a54b83851d4c1f91f79aa73de30a
   React-Core: c400b068fdb6172177f3b3fae00c10d1077244d7
   React-CoreModules: 8e911a5a504b45824374eec240a78de7a6db8ca2
   React-cxxreact: 06a91f55ac5f842219d6ca47e0f77187a5b5f4ac
@@ -2764,7 +2783,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: a5d550d1add940ed2bc65b20dc1413407bf1a63f
   React-microtasksnativemodule: 5d00fefc19f0bc9a6432e5533683d6fc9c3da4e1
   react-native-document-picker: 65723ccdfe85fafc77b80428b61973039cae2e80
-  react-native-performance-stats: cf17a268b3775dc304c9f989cbeaaca75a9c7e33
+  react-native-performance-stats: 673017f4a847bd27c20f6cb2723054fabf9cfc99
   react-native-safe-area-context: b36ae404f4500dff1a0adc05ecfa66be319730ac
   React-NativeModulesApple: b22e6abb44d78270dfdfc7d85efe29e35e0333a7
   React-oscompat: 56d6de59f9ae95cd006a1c40be2cde83bc06a4e1
