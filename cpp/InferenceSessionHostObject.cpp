@@ -88,11 +88,11 @@ public:
 protected:
   void execute() {
     if (modelPath_.empty()) {
-      session_->session_ = std::make_unique<Ort::Session>(
+      session_->session_ = std::make_shared<Ort::Session>(
           session_->env_->getOrtEnv(), modelData_, modelDataLength_,
           sessionOptions_);
     } else {
-      session_->session_ = std::make_unique<Ort::Session>(
+      session_->session_ = std::make_shared<Ort::Session>(
           session_->env_->getOrtEnv(), modelPath_.c_str(), sessionOptions_);
     }
   }
@@ -106,9 +106,6 @@ private:
   size_t modelDataLength_;
   std::shared_ptr<InferenceSessionHostObject> session_;
   Ort::SessionOptions sessionOptions_;
-  std::shared_ptr<WeakObject> weakResolve_;
-  std::shared_ptr<WeakObject> weakReject_;
-  std::thread thread_;
 };
 
 DEFINE_METHOD(InferenceSessionHostObject::loadModel) {
@@ -120,9 +117,16 @@ DEFINE_METHOD(InferenceSessionHostObject::loadModel) {
 
 class InferenceSessionHostObject::RunAsyncWorker : public AsyncWorker {
 public:
-  RunAsyncWorker(Runtime &runtime, const Value *arguments, size_t count,
-                 std::shared_ptr<InferenceSessionHostObject> session)
-      : AsyncWorker(runtime, session->env_), session_(session),
+  RunAsyncWorker(
+    Runtime &runtime,
+    const Value *arguments,
+    size_t count,
+    std::shared_ptr<Env> env,
+    std::shared_ptr<Ort::Session> session
+  )
+      : AsyncWorker(runtime, env),
+        env_(env),
+        session_(session),
         memoryInfo_(
             Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault)) {
     if (count < 1)
@@ -163,15 +167,19 @@ protected:
     std::transform(outputNames_.begin(), outputNames_.end(),
                    outputNames.begin(),
                    [](const std::string &name) { return name.c_str(); });
-    session_->session_->Run(runOptions_, inputNames.data(), inputValues_.data(),
-                            inputValues_.size(), outputNames.data(),
-                            outputValues_.data(), outputValues_.size());
+    auto session = session_.lock();
+    if (!session) {
+      throw std::runtime_error("Session is released");
+    }
+    session->Run(runOptions_, inputNames.data(), inputValues_.data(),
+                 inputValues_.size(), outputNames.data(),
+                 outputValues_.data(), outputValues_.size());
   }
 
   Value onResolve(Runtime &rt) {
     auto resultObject = Object(rt);
     auto tensorConstructor =
-        session_->env_->getTensorConstructor(rt).asObject(rt);
+        env_->getTensorConstructor(rt).asObject(rt);
     for (size_t i = 0; i < outputValues_.size(); ++i) {
       if (jsOutputValues_[i] != nullptr && outputValues_[i].IsTensor()) {
         resultObject.setProperty(rt, outputNames_[i].c_str(),
@@ -186,9 +194,14 @@ protected:
     return Value(rt, resultObject);
   }
 
+  void onAbort() {
+    runOptions_.SetTerminate();
+  }
+
 private:
+  std::shared_ptr<Env> env_;
+  std::weak_ptr<Ort::Session> session_;
   Ort::MemoryInfo memoryInfo_;
-  std::shared_ptr<InferenceSessionHostObject> session_;
   Ort::RunOptions runOptions_;
   std::vector<std::string> inputNames_;
   std::vector<Ort::Value> inputValues_;
@@ -198,9 +211,7 @@ private:
 };
 
 DEFINE_METHOD(InferenceSessionHostObject::run) {
-  auto self = shared_from_this();
-  auto worker =
-      std::make_shared<RunAsyncWorker>(runtime, arguments, count, self);
+  auto worker = std::make_shared<RunAsyncWorker>(runtime, arguments, count, env_, session_);
   return worker->toPromise(runtime);
 }
 

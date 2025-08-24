@@ -39,6 +39,11 @@ public:
 
   inline Ort::Env &getOrtEnv() const { return *ortEnv_; }
 
+  inline void runOnJsThread(std::function<void()> &&func) {
+    if (!jsInvoker_) return;
+    jsInvoker_->invokeAsync(std::move(func));
+  }
+
 private:
   std::shared_ptr<facebook::react::CallInvoker> jsInvoker_;
   std::shared_ptr<facebook::jsi::WeakObject> tensorConstructor_;

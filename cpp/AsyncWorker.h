@@ -2,27 +2,29 @@
 
 #include "Env.h"
 #include "log.h"
-#include <atomic>
 #include <jsi/jsi.h>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 using namespace facebook::jsi;
 
 namespace onnxruntimereactnativejsi {
 
-class AsyncWorker : public std::enable_shared_from_this<AsyncWorker> {
+class AsyncWorker : public HostObject, public std::enable_shared_from_this<AsyncWorker> {
 public:
-  AsyncWorker(Runtime &rt, std::shared_ptr<Env> env) : rt_(rt), env_(env) {}
+  AsyncWorker(Runtime &rt, std::shared_ptr<Env> env) : rt_(rt), env_(env), cancel_(false) {}
 
   ~AsyncWorker() {
     if (worker_.joinable()) {
-      if (worker_.get_id() == std::this_thread::get_id()) {
-        worker_.detach();
-      } else {
+      if (worker_.get_id() != std::this_thread::get_id()) {
+        cancel_ = true;
+        onAbort();
         worker_.join();
+      } else {
+        worker_.detach();
       }
     }
   }
@@ -33,25 +35,28 @@ public:
 
   Value toPromise(Runtime &rt) {
     auto promiseCtor = rt.global().getPropertyAsFunction(rt, "Promise");
-    auto self = shared_from_this();
 
-    return promiseCtor.callAsConstructor(
+    auto promise = promiseCtor.callAsConstructor(
         rt, Function::createFromHostFunction(
                 rt, PropNameID::forAscii(rt, "executor"), 2,
-                [self](Runtime &rt, const Value &thisVal, const Value *args,
+                [this](Runtime &rt, const Value &thisVal, const Value *args,
                        size_t count) -> Value {
-                  self->resolveFunc_ = std::make_shared<Value>(rt, args[0]);
-                  self->rejectFunc_ = std::make_shared<Value>(rt, args[1]);
-                  self->worker_ = std::thread([self]() {
+                  resolveFunc_ = std::make_shared<Value>(rt, args[0]);
+                  rejectFunc_ = std::make_shared<Value>(rt, args[1]);
+                  cancel_ = false;
+                  worker_ = std::thread([this]() {
+                    if (cancel_) return;
                     try {
-                      self->execute();
-                      self->dispatchResolve();
+                      execute();
+                      dispatchResolve();
                     } catch (const std::exception &e) {
-                      self->dispatchReject(e.what());
+                      dispatchReject(e.what());
                     }
                   });
                   return Value::undefined();
                 }));
+    promise.asObject(rt).setProperty(rt, "__nativeWorker", Object::createFromHostObject(rt, shared_from_this()));
+    return promise;
   }
 
 protected:
@@ -62,10 +67,13 @@ protected:
     return String::createFromUtf8(rt, err);
   }
 
+  virtual void onAbort() {}
+
 private:
   void dispatchResolve() {
+    if (cancel_) return;
     auto self = shared_from_this();
-    env_->getJsInvoker()->invokeAsync([self]() {
+    env_->runOnJsThread([self]() {
       auto resVal = self->onResolve(self->rt_);
       self->resolveFunc_->asObject(self->rt_).asFunction(self->rt_).call(self->rt_, resVal);
       self->clearKeeps();
@@ -73,8 +81,9 @@ private:
   }
 
   void dispatchReject(const std::string &err) {
+    if (cancel_) return;
     auto self = shared_from_this();
-    env_->getJsInvoker()->invokeAsync([self, err]() {
+    env_->runOnJsThread([self, err]() {
       auto resVal = self->onReject(self->rt_, err);
       self->rejectFunc_->asObject(self->rt_).asFunction(self->rt_).call(self->rt_, resVal);
       self->clearKeeps();
@@ -89,10 +98,11 @@ private:
 
   Runtime &rt_;
   std::shared_ptr<Env> env_;
+  std::atomic<bool> cancel_;
+  std::thread worker_;
   std::vector<std::shared_ptr<Value>> keptValues_;
   std::shared_ptr<Value> resolveFunc_;
   std::shared_ptr<Value> rejectFunc_;
-  std::thread worker_;
 };
 
 } // namespace onnxruntimereactnativejsi
