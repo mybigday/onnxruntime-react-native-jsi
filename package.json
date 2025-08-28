@@ -160,7 +160,6 @@
     "source": "src",
     "output": "lib",
     "targets": [
-      "codegen",
       [
         "commonjs"
       ],
@@ -174,19 +173,6 @@
         }
       ]
     ]
-  },
-  "codegenConfig": {
-    "name": "RNOnnxruntimeReactNativeJsiSpec",
-    "type": "all",
-    "jsSrcsDir": "src",
-    "outputDir": {
-      "ios": "ios/generated",
-      "android": "android/generated"
-    },
-    "android": {
-      "javaPackageName": "com.onnxruntimereactnativejsi"
-    },
-    "includesGeneratedCode": true
   },
   "create-react-native-library": {
     "type": "module-mixed",
