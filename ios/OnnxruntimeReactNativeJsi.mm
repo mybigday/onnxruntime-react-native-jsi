@@ -54,7 +54,7 @@ RCT_EXPORT_MODULE()
     
     auto jsiRuntime = (facebook::jsi::Runtime*) cxxBridge.runtime;
     if (jsiRuntime) {
-        auto jsInvoker = this.bridge.jsCallInvoker;
+        auto jsInvoker = bridge.jsCallInvoker;
         env = onnxruntimereactnativejsi::install(*jsiRuntime, jsInvoker);
     }
 }
