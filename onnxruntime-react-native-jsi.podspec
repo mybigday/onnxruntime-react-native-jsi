@@ -32,6 +32,7 @@ Pod::Spec.new do |s|
 
     # Don't install the dependencies when we run `pod install` in the old architecture.
     if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+      s.private_header_files = "ios/generated/**/*.h"
       s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1" + common_compiler_flags
       s.pod_target_xcconfig    = {
           "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
@@ -43,6 +44,8 @@ Pod::Spec.new do |s|
       s.dependency "RCTRequired"
       s.dependency "RCTTypeSafety"
       s.dependency "ReactCommon/turbomodule/core"
+    else
+      s.exclude_files = "ios/generated/**/*"
     end
   end
 end
