@@ -155,6 +155,10 @@
     "jsSrcsDir": "src",
     "android": {
       "javaPackageName": "com.onnxruntimereactnativejsi"
+    },
+    "includesGeneratedCode": false,
+    "outputDir": {
+      "android": "android/generated"
     }
   },
   "create-react-native-library": {
