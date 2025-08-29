@@ -1,17 +1,24 @@
 cmake_minimum_required(VERSION 3.9.0)
 project(OnnxruntimeReactNativeJsi)
 
-set(build_DIR ${CMAKE_SOURCE_DIR}/build)
+set(BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
 
 set (CMAKE_VERBOSE_MAKEFILE ON)
 set (CMAKE_CXX_STANDARD 17)
 
 file(GLOB LIBRN_DIR "${PREBUILT_DIR}/${ANDROID_ABI}")
-file(GLOB libfbjni_link_DIRS "${build_DIR}/fbjni-*.aar/jni/${ANDROID_ABI}")
-file(GLOB libfbjni_include_DIRS "${build_DIR}/fbjni-*-headers.jar/")
 
-file(GLOB onnxruntime_include_DIRS "${build_DIR}/onnxruntime-android-*.aar/headers")
-file(GLOB onnxruntime_link_DIRS "${build_DIR}/onnxruntime-android-*.aar/jni/${ANDROID_ABI}/libonnxruntime.so")
+file(GLOB libfbjni_link_DIRS "${BUILD_DIR}/fbjni-*.aar/jni/${ANDROID_ABI}")
+file(GLOB libfbjni_include_DIRS "${BUILD_DIR}/fbjni-*-headers.jar/")
+
+file(GLOB onnxruntime_include_DIRS
+     "${BUILD_DIR}/onnxruntime-android-*.aar/headers")
+file(GLOB onnxruntime_link_DIRS
+     "${BUILD_DIR}/onnxruntime-android-*.aar/jni/${ANDROID_ABI}/")
+
+
+file(GLOB onnxruntime_include_DIRS "${BUILD_DIR}/onnxruntime-android-*.aar/headers")
+file(GLOB onnxruntime_link_DIRS "${BUILD_DIR}/onnxruntime-android-*.aar/jni/${ANDROID_ABI}/libonnxruntime.so")
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DFOLLY_NO_CONFIG=1 -DFOLLY_HAVE_CLOCK_GETTIME=1 -DFOLLY_HAVE_MEMRCHR=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_MOBILE=1 -DON_ANDROID -DONANDROID")
 

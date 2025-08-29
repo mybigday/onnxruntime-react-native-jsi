@@ -70,6 +70,7 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install)
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
+    [self installImpl];
     return std::make_shared<facebook::react::NativeOnnxruntimeReactNativeJsiSpecJSI>(params);
 }
 #endif

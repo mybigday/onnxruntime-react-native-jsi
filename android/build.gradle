@@ -215,20 +215,19 @@ android {
   }
 
   if (ENABLE_PREFAB) {
-    buildFeatures {
-      prefab true
-      prefabPublishing true
-    }
-    prefab {
-      "onnxruntime-react-native-jsi" {
-        headers "${project.buildDir}/headers/OnnxruntimeReactNativeJsi/"
+      buildFeatures {
+              prefab true
+              prefabPublishing true
       }
-    }
+      prefab {
+          "onnxruntime-react-native-jsi" {
+              headers "${project.buildDir}/headers/onnxruntime-react-native-jsi/"
+          }
+      }
   }
 
   configurations {
-    extractHeaders
-    extractJNI
+    extractLibs
   }
 }
 
@@ -247,15 +246,13 @@ dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
   // Official ONNX Runtime Android AAR (includes prebuilt onnxruntime.so)
-  extractJNI("com.microsoft.onnxruntime:onnxruntime-android:${onnxruntime_version}@aar")
-  extractHeaders("com.microsoft.onnxruntime:onnxruntime-android:${onnxruntime_version}@aar")
+  extractLibs("com.microsoft.onnxruntime:onnxruntime-android:${onnxruntime_version}@aar")
 
   if (REACT_NATIVE_VERSION < 71) {
     logger.warn("onnxruntime-react-native-jsi: Extracting files from AAR (pre RN 0.71)")
     //noinspection GradleDynamicVersion
-    extractHeaders("com.facebook.fbjni:fbjni:0.2.2:headers")
-    //noinspection GradleDynamicVersion
-    extractJNI("com.facebook.fbjni:fbjni:0.2.2")
+    extractLibs("com.facebook.fbjni:fbjni:0.2.2")
+    extractLibs("com.facebook.fbjni:fbjni:0.2.2:headers")
   }
 
   if (!sourceBuild) {
@@ -270,14 +267,6 @@ dependencies {
     def rnAAR = fileTree("${nodeModules}/react-native/android").matching({ it.include rnAarMatcher }).singleFile
     logger.warn("onnxruntime-react-native-jsi: Extracting JNI files (pre RN 0.71) ${rnAAR}")
     extractJNI(files(rnAAR))
-  }
-}
-
-if (isNewArchitectureEnabled()) {
-  react {
-    jsRootDir = file("../src/")
-    libraryName = "OnnxruntimeReactNativeJsi"
-    codegenJavaPackageName = "com.onnxruntimereactnativejsi"
   }
 }
 
@@ -302,42 +291,28 @@ afterEvaluate { project ->
   }
 }
 
-task extractAARHeaders {
+task extractLibs {
   doLast {
-    configurations.extractHeaders.files.each {
+    configurations.extractLibs.files.each {
       def file = it.absoluteFile
       copy {
         from zipTree(file)
         into "$buildDir/$file.name"
-        include "**/*.h"
+        include "**/*.h", "jni/**/*"
       }
     }
   }
 }
-
-task extractJNIFiles {
-  doLast {
-    configurations.extractJNI.files.each {
-      def file = it.absoluteFile
-      copy {
-        from zipTree(file)
-        into "$buildDir/$file.name"
-        include "jni/**/*"
-      }
-    }
-  }
-}
-
-extractJNIFiles.mustRunAfter extractAARHeaders
 
 if (ENABLE_PREFAB) {
-  // Package all the cpp code in a flattened directory structure
-  task prepareHeaders(type: Copy) {
-    from fileTree('../cpp').filter { it.isFile() }
-    into "${project.buildDir}/headers/OnnxruntimeReactNativeJsi/onnxruntime-react-native-jsi/"
-    includeEmptyDirs = false
-  }
-  preBuild.dependsOn(prepareHeaders)
+    // Package all the cpp code in a flattened directory structure
+    task prepareHeaders(type: Copy) {
+        from("../cpp")
+        into "${project.buildDir}/headers/onnxruntime-react-native-jsi"
+        includeEmptyDirs = false
+        include "**/*.h"
+    }
+    preBuild.dependsOn(prepareHeaders)
 }
 
 def nativeBuildDependsOn(dependsOnTask, variant) {
@@ -350,6 +325,5 @@ def nativeBuildDependsOn(dependsOnTask, variant) {
 }
 
 afterEvaluate {
-  nativeBuildDependsOn(extractAARHeaders, null)
-  nativeBuildDependsOn(extractJNIFiles, null)
+  nativeBuildDependsOn(extractLibs, null)
 }
