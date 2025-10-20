@@ -10587,7 +10587,7 @@ __metadata:
     "@types/react": ^19.1.0
     babel-plugin-module-resolver: ^5.0.2
     bytes: ^3.1.2
-    onnxruntime-react-native: ^1.22.0
+    onnxruntime-react-native: ^1.23.0
     patch-package: ^8.0.0
     react: 19.1.0
     react-native: 0.81.0
@@ -10637,7 +10637,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"onnxruntime-react-native@npm:1.22.0, onnxruntime-react-native@npm:^1.22.0":
+"onnxruntime-react-native@npm:1.22.0":
   version: 1.22.0
   resolution: "onnxruntime-react-native@npm:1.22.0"
   dependencies:
@@ -10647,6 +10647,19 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 600ba585c45cc49c9787d9b9fa10a033f08b01643f0e6bea66eeb2f071cc08cf02b601fa3db418a74920fdf819bc45ff8a8459f16acb2462937e21716dd1a8c8
+  languageName: node
+  linkType: hard
+
+"onnxruntime-react-native@npm:^1.23.0":
+  version: 1.23.0
+  resolution: "onnxruntime-react-native@npm:1.23.0"
+  dependencies:
+    buffer: ^6.0.3
+    onnxruntime-common: 1.23.0
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 8402897c0abdaf057dcbfe20400b07f0408008ad8da5c7e6387aaefd41f674ff017420b735408f0b530384067de616658602e666202d00509304346333d02529
   languageName: node
   linkType: hard
 

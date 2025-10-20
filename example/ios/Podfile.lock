@@ -8,8 +8,8 @@ PODS:
   - hermes-engine (0.81.0):
     - hermes-engine/Pre-built (= 0.81.0)
   - hermes-engine/Pre-built (0.81.0)
-  - onnxruntime-c (1.22.0)
-  - onnxruntime-react-native (1.22.0):
+  - onnxruntime-c (1.23.0)
+  - onnxruntime-react-native (1.23.0):
     - onnxruntime-c
     - React-Core
   - onnxruntime-react-native-jsi (1.22.0-alpha.4):
@@ -19,7 +19,7 @@ PODS:
     - fmt
     - glog
     - hermes-engine
-    - onnxruntime-c (~> 1.22.0)
+    - onnxruntime-c (~> 1.23.0)
     - RCT-Folly
     - RCT-Folly/Fabric
     - RCTRequired
