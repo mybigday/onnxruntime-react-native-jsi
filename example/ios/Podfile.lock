@@ -12,7 +12,7 @@ PODS:
   - onnxruntime-react-native (1.23.0):
     - onnxruntime-c
     - React-Core
-  - onnxruntime-react-native-jsi (1.22.0-alpha.4):
+  - onnxruntime-react-native-jsi (1.22.0-alpha.7):
     - boost
     - DoubleConversion
     - fast_float
@@ -2832,9 +2832,9 @@ SPEC CHECKSUMS:
   fmt: a40bb5bd0294ea969aaaba240a927bd33d878cdd
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   hermes-engine: e7491a2038f2618c8cd444ed411a6deb350a3742
-  onnxruntime-c: 7f778680e96145956c0a31945f260321eed2611a
-  onnxruntime-react-native: fc8c8349f1cc9bf6123f5e4f91cdc270a75f1e81
-  onnxruntime-react-native-jsi: 4163af5c5867e8ee112e7549e8930d622691201d
+  onnxruntime-c: 3174c63a963d9abbc2bf9627e3d622819c0ed5f7
+  onnxruntime-react-native: acb04e4ea845305864b8d537649a8714dc0c478f
+  onnxruntime-react-native-jsi: 57e7cd3645e32ad66beb4690a4dbb6dc61547a56
   RCT-Folly: 59ec0ac1f2f39672a0c6e6cecdd39383b764646f
   RCTDeprecation: 0735ab4f6b3ec93a7f98187b5da74d7916e2cf4c
   RCTRequired: 8fcc7801bfc433072287b0f24a662e2816e89d0c
