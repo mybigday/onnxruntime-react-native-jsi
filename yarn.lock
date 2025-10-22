@@ -10591,7 +10591,7 @@ __metadata:
     patch-package: ^8.0.0
     react: 19.1.0
     react-native: 0.81.0
-    react-native-audio-api: ^0.7.0
+    react-native-audio-api: ^0.9.1
     react-native-builder-bob: ^0.40.13
     react-native-monorepo-config: ^0.1.9
     react-native-performance-stats: ^0.2.3
@@ -11445,15 +11445,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-audio-api@npm:^0.7.0":
-  version: 0.7.1
-  resolution: "react-native-audio-api@npm:0.7.1"
+"react-native-audio-api@npm:^0.9.1":
+  version: 0.9.1
+  resolution: "react-native-audio-api@npm:0.9.1"
   peerDependencies:
     react: "*"
     react-native: "*"
+    react-native-worklets: ~0.6.0
   bin:
     setup-rn-audio-api-web: scripts/setup-rn-audio-api-web.js
-  checksum: c7394baf5df3238a122e87605ff8035273ea68d87bcbfec055857e9b999d82e32e9380fc06fb5e66a36bc5d85117cb1791a3e7226a2016e94e58f6c4a102f93b
+  checksum: 279202ba1fc6a7463aaf87f2bd578922f840be56b06ab856cadc287d011480971ee362bd88f585d3c34e6b2ee2dd8a127315238e9382cc43e65f96e28c1342e7
   languageName: node
   linkType: hard
 

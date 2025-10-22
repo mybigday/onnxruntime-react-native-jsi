@@ -23,7 +23,7 @@
     "onnxruntime-react-native": "^1.23.0",
     "react": "19.1.0",
     "react-native": "0.81.0",
-    "react-native-audio-api": "^0.7.0",
+    "react-native-audio-api": "^0.9.1",
     "react-native-performance-stats": "^0.2.3",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "^4.13.1",
