@@ -2427,7 +2427,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNAudioAPI (0.7.1):
+  - RNAudioAPI (0.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2453,10 +2453,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNAudioAPI/audioapi (= 0.7.1)
+    - RNAudioAPI/audioapi (= 0.9.1)
     - SocketRocket
     - Yoga
-  - RNAudioAPI/audioapi (0.7.1):
+  - RNAudioAPI/audioapi (0.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2482,10 +2482,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNAudioAPI/audioapi/ios (= 0.7.1)
+    - RNAudioAPI/audioapi/ios (= 0.9.1)
     - SocketRocket
     - Yoga
-  - RNAudioAPI/audioapi/ios (0.7.1):
+  - RNAudioAPI/audioapi/ios (0.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2902,7 +2902,7 @@ SPEC CHECKSUMS:
   ReactCodegen: a5d5626f71299d374b87e9a7dc92f968a963b4ef
   ReactCommon: c235ebd26d63fde9a2dfa72cee9f8294b910fee1
   ReactNativeFs: 5f109ad7deaf7fa41a0432c262bfe4e63e54f786
-  RNAudioAPI: 80f265ddd4dc68cf26da4fd0faee7d82e56d2d79
+  RNAudioAPI: 8e464d598d214559653f4a708e2dc4ec6ab7b257
   RNScreens: 5c7f22b19ee2e900e5de2c578471aeb153d1e502
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: bbe4f23a1bb60cb9223af2637e02c6c29d18f834
